@@ -61,7 +61,7 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 exclude = [
-    "\.venv",
+    ".venv",
     "venv",
     "__pycache__",
     "build",
