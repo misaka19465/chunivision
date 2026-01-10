@@ -1,0 +1,198 @@
+# ChunIVision Configuration
+# Chunithm Vision-Based Controller
+# Author: Misaka 19465
+# Platform: Windows Only
+
+# Application Settings
+app:
+  name: "ChunIVision"
+  version: "1.0.0"
+  mode: "run"  # Options: "run", "calibration", "debug", "test"
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: null  # Set to path for file logging, null for console only
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  rotation: true  # Enable log rotation
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Camera Configuration
+camera:
+  left_camera_index: 0
+  right_camera_index: 1
+  resolution: [640, 480]  # Width x Height
+  fps: 60
+  exposure: -1  # -1 for auto, or specific value
+  
+  # Physical camera positions (cm from origin)
+  left_camera_position: [-10.0, 15.0, 30.0]  # X, Y, Z
+  right_camera_position: [10.0, 15.0, 30.0]
+  baseline_distance: 20.0  # Distance between cameras (cm)
+  
+  # Camera angles (degrees)
+  left_camera_angle: 45.0
+  right_camera_angle: 45.0
+
+# Vision Processing Configuration
+vision:
+  # Touch detection
+  touch_threshold_z: 2.0  # Height threshold for touch (cm)
+  min_hand_size: 100  # Minimum points for hand detection
+  max_hands: 10  # Maximum simultaneous hands to track
+  
+  # Height estimation (Air sensors)
+  height_levels: 6
+  height_thresholds: [17.9, 21.3, 24.7, 28.1, 31.5, 34.9]  # cm, Air 0-5
+  # Air sensor heights: 17.9cm base, then 3.4cm intervals
+  height_hysteresis: 1.0  # cm, prevents rapid level switching
+  
+  # Stereo processing
+  stereo_algorithm: "SGBM"  # Semi-Global Block Matching
+  min_depth: 0.0  # cm
+  max_depth: 35.0  # cm
+  
+  # Performance
+  enable_gpu: false  # Use GPU acceleration if available
+  num_threads: 4  # Processing threads
+
+# Touch Zone Configuration
+zones:
+  num_rows: 2
+  num_cols: 16
+  total_zones: 32
+  
+  # Physical dimensions (cm)
+  zone_width: 2.75  # 27.5mm per zone
+  zone_height: 4.5   # 45mm per zone
+  
+  # Origin position (bottom-right corner)
+  origin_x: 22.0  # Half of total width (16 * 2.75 / 2)
+  origin_y: 0.0
+  
+  # Zone numbering: bottom-right is 1, bottom row odd (31,29...1), top row even (32,30...2)
+  # Zone 1: bottom-right, Zone 32: top-left
+
+# Output Configuration
+outputs:
+  # Enable/disable output methods
+  serial:
+    enabled: false
+    protocol: "binary"  # "binary" or "text" (use binary for Chunithm compatibility)
+    baud_rate: 115200
+    port_name: "COM10"  # Windows COM port (use com0com for virtual ports)
+    
+  hid:
+    enabled: false  # Requires UDE driver installation
+    
+    # USB device parameters (matching real Chunithm controller)
+    vendor_id: 0x1973
+    product_id: 0x2001
+    manufacturer: "ZHOUSENSOR I/O SYSTEM"
+    product: "ZhouSensor YubiDeck"
+    serial: "OK"
+    
+    # UDE driver settings
+    driver_path: "\\\\.\\ChunithmController"  # Device path for IOCTL communication
+    use_ude: true  # Use Windows UDE (kernel driver)
+    
+    # Alternative: Hardware USB emulation (if use_ude: false)
+    # hardware_type: "pico"  # Options: "pico", "arduino", "teensy"
+    # serial_port: "COM5"    # Serial port for hardware communication
+    
+  keyboard:
+    enabled: false
+    # Key mappings for 32 touch zones (zones 1-32)
+    # Bottom row (odd): zones 31,29,27...3,1 -> keys 1-9,0,-,=,[,],\,;
+    # Top row (even): zones 32,30,28...4,2 -> keys Q-P,{,},:,",|,?
+    touch_zone_keys:
+      # Zones 1-16 (right half)
+      - "1"   # Zone 1 (bottom-right)
+      - "2"   # Zone 2 (top-right)
+      - "3"   # Zone 3
+      - "4"   # Zone 4
+      - "5"   # Zone 5
+      - "6"   # Zone 6
+      - "7"   # Zone 7
+      - "8"   # Zone 8
+      - "9"   # Zone 9
+      - "0"   # Zone 10
+      - "-"   # Zone 11
+      - "="   # Zone 12
+      - "["   # Zone 13
+      - "]"   # Zone 14
+      - "\\"  # Zone 15
+      - ";"   # Zone 16
+      # Zones 17-32 (left half)
+      - "q"   # Zone 17
+      - "w"   # Zone 18
+      - "e"   # Zone 19
+      - "r"   # Zone 20
+      - "t"   # Zone 21
+      - "y"   # Zone 22
+      - "u"   # Zone 23
+      - "i"   # Zone 24
+      - "o"   # Zone 25
+      - "p"   # Zone 26
+      - "{"   # Zone 27
+      - "}"   # Zone 28
+      - ":"   # Zone 29
+      - '"'   # Zone 30
+      - "|"   # Zone 31
+      - "?"   # Zone 32 (top-left)
+    
+    # Key mappings for 6 air sensors
+    air_sensor_keys:
+      - "a"  # Air 0 (17.9cm)
+      - "s"  # Air 1 (21.3cm)
+      - "d"  # Air 2 (24.7cm)
+      - "f"  # Air 3 (28.1cm)
+      - "g"  # Air 4 (31.5cm)
+      - "h"  # Air 5 (34.9cm)
+    
+    # Optional modifiers (not used by default)
+    use_modifiers: false
+    modifier_keys: []
+  
+  udp:
+    enabled: true
+    format: "binary"  # "binary" or "json"
+    target_ip: "127.0.0.1"
+    target_port: 28888  # 28888 = "CHUN" on phone keypad
+    bind_ip: "0.0.0.0"
+    bind_port: 0  # 0 for any available port
+    enable_broadcast: false
+
+# Performance Monitoring
+performance:
+  enabled: true
+  log_interval: 5.0  # Log stats every N seconds
+  fps_warning_threshold: 50  # Warn if FPS drops below this
+  latency_warning_threshold: 15  # Warn if latency exceeds this (ms)
+
+# Calibration
+calibration:
+  file: "configs/calibration.yaml"
+  auto_load: true
+  validation_threshold: 0.7  # Minimum quality score to accept calibration
+  
+  # Calibration board specifications
+  board_width: 40.0  # cm
+  board_height: 10.0  # cm
+
+# Debug Options
+debug:
+  show_camera_view: false
+  show_depth_map: false
+  show_detections: false
+  save_debug_frames: false
+  debug_output_dir: "debug_output/"
+  visualize_zones: false
+  
+# Paths
+paths:
+  config_dir: "configs/"
+  calibration_dir: "configs/calibrations/"
+  log_dir: "logs/"
+  data_dir: "data/"

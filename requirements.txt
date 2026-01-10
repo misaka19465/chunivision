@@ -1,0 +1,34 @@
+# Python Dependencies for ChunIVision
+
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.0
+pyyaml>=5.4.0
+
+# Vision processing
+scipy>=1.7.0
+
+# Output adapters
+pyserial>=3.5  # Serial port support
+pynput>=1.7.6  # Keyboard emulation (cross-platform)
+
+# Linux-specific (optional, for native HID/keyboard)
+# evdev>=1.4.0  # Linux input devices
+# python-uinput>=0.11.2  # Virtual input devices
+
+# Utilities
+python-dateutil>=2.8.0
+
+# Development dependencies
+pytest>=7.0.0
+pytest-cov>=3.0.0
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.950
+
+# Documentation
+sphinx>=4.5.0
+sphinx-rtd-theme>=1.0.0
+
+# Performance profiling
+memory-profiler>=0.60.0

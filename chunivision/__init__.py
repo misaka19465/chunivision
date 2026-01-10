@@ -1,0 +1,13 @@
+"""
+ChunIVision - Vision-based Chunithm Controller
+
+A modular, extensible system for vision-based touch detection and height
+tracking using dual infrared cameras.
+"""
+
+__version__ = "1.0.0"
+__author__ = "ChunIVision Team"
+
+from .main import main
+
+__all__ = ['main']
