@@ -1,0 +1,59 @@
+;
+; ChunithmUDE.inf
+; Installation file for ChunithmUDE USB Device Emulation Driver
+;
+; Author: Misaka 19465
+; Platform: Windows 10/11 (x64)
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=HIDClass
+ClassGuid={745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider=%ManufacturerName%
+CatalogFile=ChunithmUDE.cat
+DriverVer=01/01/2024,1.0.0.0
+PnpLockDown=1
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[SourceDisksFiles]
+ChunithmUDE.sys = 1
+
+[Manufacturer]
+%ManufacturerName%=ChunithmUDE,NTamd64
+
+[ChunithmUDE.NTamd64]
+%DeviceDesc%=ChunithmUDE_Install, root\ChunithmUDE
+
+[ChunithmUDE_Install.NT]
+CopyFiles=ChunithmUDE_CopyFiles
+
+[ChunithmUDE_CopyFiles]
+ChunithmUDE.sys
+
+[ChunithmUDE_Install.NT.Services]
+AddService = ChunithmUDE, 0x00000002, ChunithmUDE_Service
+
+[ChunithmUDE_Service]
+DisplayName    = %ServiceName%
+ServiceType    = 1 ; SERVICE_KERNEL_DRIVER
+StartType      = 3 ; SERVICE_DEMAND_START
+ErrorControl   = 1 ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\ChunithmUDE.sys
+
+[ChunithmUDE_Install.NT.Wdf]
+KmdfService = ChunithmUDE, ChunithmUDE_WdfSection
+
+[ChunithmUDE_WdfSection]
+KmdfLibraryVersion = 1.15
+
+[DestinationDirs]
+ChunithmUDE_CopyFiles = 12 ; %SystemRoot%\System32\drivers
+
+[Strings]
+ManufacturerName="Misaka 19465"
+DiskName="ChunithmUDE Installation Disk"
+DeviceDesc="Chunithm USB Device Emulation"
+ServiceName="ChunithmUDE Driver"

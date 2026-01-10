@@ -1,0 +1,59 @@
+"""
+Constants for ChunithmUDE driver communication.
+
+Author: Misaka 19465
+"""
+
+# HID report sizes
+CHUNITHM_INPUT_REPORT_SIZE = 45   # Input to PC
+CHUNITHM_OUTPUT_REPORT_SIZE = 61  # Output from PC (not used)
+
+# IOCTL codes (must match driver definitions)
+# CTL_CODE(FILE_DEVICE_UNKNOWN, function, METHOD_BUFFERED, FILE_ANY_ACCESS)
+FILE_DEVICE_UNKNOWN = 0x00000022
+METHOD_BUFFERED = 0
+METHOD_NEITHER = 3
+FILE_ANY_ACCESS = 0
+FILE_READ_DATA = 0x0001
+
+
+def _CTL_CODE(DeviceType, Function, Method, Access):
+    """Calculate Windows IOCTL control code."""
+    return (DeviceType << 16) | (Access << 14) | (Function << 2) | Method
+
+
+IOCTL_CHUNITHM_SEND_REPORT = _CTL_CODE(FILE_DEVICE_UNKNOWN, 0x800, METHOD_BUFFERED, FILE_ANY_ACCESS)
+IOCTL_CHUNITHM_GET_STATUS = _CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_BUFFERED, FILE_READ_DATA)
+IOCTL_CHUNITHM_RESET = _CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, METHOD_NEITHER, FILE_ANY_ACCESS)
+
+# Default device path
+DEFAULT_DEVICE_PATH = r"\\.\ChunithmController"
+
+# USB device parameters (official Chunithm controller)
+CHUNITHM_VENDOR_ID = 0x1973
+CHUNITHM_PRODUCT_ID = 0x2001
+CHUNITHM_MANUFACTURER = "ZHOUSENSOR I/O SYSTEM"
+CHUNITHM_PRODUCT = "ZhouSensor YubiDeck"
+CHUNITHM_SERIAL = "OK"
+
+# Touch zone configuration
+NUM_TOUCH_ZONES = 32
+NUM_AIR_SENSORS = 6
+
+# Touch values
+TOUCH_VALUE_RELEASED = 0x00
+TOUCH_VALUE_PRESSED = 0x64  # 100 in decimal
+
+# Air sensor bit positions
+AIR_SENSOR_0_BIT = 0  # 17.9cm
+AIR_SENSOR_1_BIT = 1  # 21.3cm
+AIR_SENSOR_2_BIT = 2  # 24.7cm
+AIR_SENSOR_3_BIT = 3  # 28.1cm
+AIR_SENSOR_4_BIT = 4  # 31.5cm
+AIR_SENSOR_5_BIT = 5  # 34.9cm
+
+# Windows API constants
+GENERIC_READ = 0x80000000
+GENERIC_WRITE = 0x40000000
+OPEN_EXISTING = 3
+INVALID_HANDLE_VALUE = -1
