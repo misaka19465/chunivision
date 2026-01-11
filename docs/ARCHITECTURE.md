@@ -6,7 +6,7 @@
 
 ## System Overview
 
-ChunIVision is a vision-based Chunithm controller that uses dual infrared cameras to detect hand positions and gestures, replacing traditional touch sensors and infrared height detection arrays.
+ChunIVision is a vision-based Chusan controller that uses dual infrared cameras to detect hand positions and gestures, replacing traditional touch sensors and infrared height detection arrays.
 
 **Key Specifications:**
 

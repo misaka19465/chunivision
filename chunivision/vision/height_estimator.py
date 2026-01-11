@@ -2,9 +2,9 @@
 Height Estimation module for ChunIVision.
 
 Estimates which height levels are occupied by hands, emulating the behavior
-of traditional IR sensor arrays used in Chunithm cabinets.
+of traditional IR sensor arrays used in Chusan cabinets.
 
-The Chunithm air sensor has 6 height levels:
+The Chusan air sensor has 6 height levels:
 - Air 0: 17.9 cm
 - Air 1: 21.3 cm
 - Air 2: 24.7 cm
@@ -29,7 +29,7 @@ from .hand_detector import Hand
 logger = Logger.get_logger(__name__)
 
 
-# Default height thresholds matching Chunithm air sensor positions (in cm)
+# Default height thresholds matching Chusan air sensor positions (in cm)
 DEFAULT_HEIGHT_THRESHOLDS: List[float] = [17.9, 21.3, 24.7, 28.1, 31.5, 34.9]
 
 
@@ -193,7 +193,7 @@ class HeightEstimatorConfig:
     min_confidence: float = 0.3
     debounce_frames: int = 2
     x_range: Optional[Tuple[float, float]] = None  # None = no X filtering
-    cumulative_levels: bool = True  # Chunithm-style: hand at level 3 also triggers 0-2
+    cumulative_levels: bool = True  # Chusan-style: hand at level 3 also triggers 0-2
 
     def validate(self) -> List[str]:
         """Validate configuration parameters."""
@@ -235,7 +235,7 @@ class HeightEstimator:
     """
     Assigns hands to discrete height levels (emulates IR sensor array).
 
-    The Chunithm air sensor uses 6 IR beam pairs to detect hand height.
+    The Chusan air sensor uses 6 IR beam pairs to detect hand height.
     This class emulates that behavior by mapping 3D hand positions to
     discrete height levels.
 

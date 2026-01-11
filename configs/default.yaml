@@ -1,5 +1,5 @@
 # ChunIVision Configuration
-# Chunithm Vision-Based Controller
+# Chusan Vision-Based Controller
 # Author: Misaka 19465
 # Platform: Windows Only
 
@@ -25,12 +25,12 @@ camera:
   resolution: [640, 480]  # Width x Height
   fps: 60
   exposure: -1  # -1 for auto, or specific value
-  
+
   # Physical camera positions (cm from origin)
   left_camera_position: [-10.0, 15.0, 30.0]  # X, Y, Z
   right_camera_position: [10.0, 15.0, 30.0]
   baseline_distance: 20.0  # Distance between cameras (cm)
-  
+
   # Camera angles (degrees)
   left_camera_angle: 45.0
   right_camera_angle: 45.0
@@ -41,18 +41,18 @@ vision:
   touch_threshold_z: 2.0  # Height threshold for touch (cm)
   min_hand_size: 100  # Minimum points for hand detection
   max_hands: 10  # Maximum simultaneous hands to track
-  
+
   # Height estimation (Air sensors)
   height_levels: 6
   height_thresholds: [17.9, 21.3, 24.7, 28.1, 31.5, 34.9]  # cm, Air 0-5
   # Air sensor heights: 17.9cm base, then 3.4cm intervals
   height_hysteresis: 1.0  # cm, prevents rapid level switching
-  
+
   # Stereo processing
   stereo_algorithm: "SGBM"  # Semi-Global Block Matching
   min_depth: 0.0  # cm
   max_depth: 35.0  # cm
-  
+
   # Performance
   enable_gpu: false  # Use GPU acceleration if available
   num_threads: 4  # Processing threads
@@ -62,15 +62,15 @@ zones:
   num_rows: 2
   num_cols: 16
   total_zones: 32
-  
+
   # Physical dimensions (cm)
   zone_width: 2.75  # 27.5mm per zone
   zone_height: 4.5   # 45mm per zone
-  
+
   # Origin position (bottom-right corner)
   origin_x: 22.0  # Half of total width (16 * 2.75 / 2)
   origin_y: 0.0
-  
+
   # Zone numbering: bottom-right is 1, bottom row odd (31,29...1), top row even (32,30...2)
   # Zone 1: bottom-right, Zone 32: top-left
 
@@ -79,28 +79,28 @@ outputs:
   # Enable/disable output methods
   serial:
     enabled: false
-    protocol: "binary"  # "binary" or "text" (use binary for Chunithm compatibility)
+    protocol: "binary"  # "binary" or "text" (use binary for Chusan compatibility)
     baud_rate: 115200
     port_name: "COM10"  # Windows COM port (use com0com for virtual ports)
-    
+
   hid:
     enabled: false  # Requires UDE driver installation
-    
-    # USB device parameters (matching real Chunithm controller)
+
+    # USB device parameters (matching real Chusan controller)
     vendor_id: 0x1973
     product_id: 0x2001
     manufacturer: "ZHOUSENSOR I/O SYSTEM"
     product: "ZhouSensor YubiDeck"
     serial: "OK"
-    
+
     # UDE driver settings
-    driver_path: "\\\\.\\ChunithmController"  # Device path for IOCTL communication
+    driver_path: "\\\\.\\ChusanController"  # Device path for IOCTL communication
     use_ude: true  # Use Windows UDE (kernel driver)
-    
+
     # Alternative: Hardware USB emulation (if use_ude: false)
     # hardware_type: "pico"  # Options: "pico", "arduino", "teensy"
     # serial_port: "COM5"    # Serial port for hardware communication
-    
+
   keyboard:
     enabled: false
     # Key mappings for 32 touch zones (zones 1-32)
@@ -141,7 +141,7 @@ outputs:
       - '"'   # Zone 30
       - "|"   # Zone 31
       - "?"   # Zone 32 (top-left)
-    
+
     # Key mappings for 6 air sensors
     air_sensor_keys:
       - "a"  # Air 0 (17.9cm)
@@ -150,11 +150,11 @@ outputs:
       - "f"  # Air 3 (28.1cm)
       - "g"  # Air 4 (31.5cm)
       - "h"  # Air 5 (34.9cm)
-    
+
     # Optional modifiers (not used by default)
     use_modifiers: false
     modifier_keys: []
-  
+
   udp:
     enabled: true
     format: "binary"  # "binary" or "json"
@@ -176,7 +176,7 @@ calibration:
   file: "configs/calibration.yaml"
   auto_load: true
   validation_threshold: 0.7  # Minimum quality score to accept calibration
-  
+
   # Calibration board specifications
   board_width: 40.0  # cm
   board_height: 10.0  # cm
@@ -189,7 +189,7 @@ debug:
   save_debug_frames: false
   debug_output_dir: "debug_output/"
   visualize_zones: false
-  
+
 # Paths
 paths:
   config_dir: "configs/"

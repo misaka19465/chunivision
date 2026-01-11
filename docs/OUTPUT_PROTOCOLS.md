@@ -2,16 +2,16 @@
 
 This document details the communication protocols for each output adapter, allowing game integration via multiple methods.
 
-**Author**: Misaka 19465  
-**Platform**: Windows only  
+**Author**: Misaka 19465
+**Platform**: Windows only
 **Note**: RGB/LED data is not implemented as this controller has no light effects.
 
 ## Overview
 
 ChunIVision supports four output methods for Windows:
 
-1. **Virtual Serial Port (COM)**: Standard Chunithm serial protocol via virtual COM ports
-2. **Virtual HID Device (USB)**: Native Chunithm USB device emulation (requires hardware)
+1. **Virtual Serial Port (COM)**: Standard Chusan serial protocol via virtual COM ports
+2. **Virtual HID Device (USB)**: Native Chusan USB device emulation (requires hardware)
 3. **Virtual Keyboard**: Maps zones/air sensors to keyboard keys (testing/fallback)
 4. **UDP Network**: Custom low-latency protocol for custom games
 
@@ -26,7 +26,7 @@ Each method transmits the same logical state:
 
 ### Overview
 
-Standard Chunithm controller communication via virtual COM port on Windows.
+Standard Chusan controller communication via virtual COM port on Windows.
 
 **Characteristics:**
 
@@ -44,12 +44,12 @@ Standard Chunithm controller communication via virtual COM port on Windows.
 **Total Size**: 33 bytes
 
 ```
-Byte   | Description                          | Value
--------|--------------------------------------|------------------
-0      | Report ID                            | 0x01
-1-4    | Touch zones 1-32 (4 bytes, bit-packed) | Bitfield
-5-10   | Air sensors 0-5 (6 bytes)           | 0x00 or 0x01 each
-11-32  | Reserved/Padding                     | 0x00
+| Byte  | Description                            | Value             |
+| ----- | -------------------------------------- | ----------------- |
+| 0     | Report ID                              | 0x01              |
+| 1-4   | Touch zones 1-32 (4 bytes, bit-packed) | Bitfield          |
+| 5-10  | Air sensors 0-5 (6 bytes)              | 0x00 or 0x01 each |
+| 11-32 | Reserved/Padding                       | 0x00              |
 ```
 
 #### Touch Zone Bit Packing
@@ -118,13 +118,13 @@ def send_state(touch_zones, air_sensors):
             byte_idx = i // 8
             bit_idx = i % 8
             touch_bytes[byte_idx] |= (1 << bit_idx)
-    
+
     # Pack air sensors (6 bytes)
     air_bytes = bytearray([1 if air_sensors[i] else 0 for i in range(6)])
-    
+
     # Build packet
     packet = bytearray([0x01]) + touch_bytes + air_bytes + bytearray(22)
-    
+
     port.write(packet)
 ```
 
@@ -134,13 +134,13 @@ def send_state(touch_zones, air_sensors):
 
 ### Overview
 
-Emulates real Chunithm controller as USB HID device using **Windows USB Device Emulation (UDE)** framework.
+Emulates real Chusan controller as USB HID device using **Windows USB Device Emulation (UDE)** framework.
 
 **Characteristics:**
 
 - Latency: ~2-4ms (kernel-mode UDE)
 - Pure software solution (no hardware required)
-- Official Chunithm USB parameters
+- Official Chusan USB parameters
 - Requires custom WDK kernel driver
 
 **USB Device Parameters** (from reference hardware):
@@ -153,7 +153,7 @@ Emulates real Chunithm controller as USB HID device using **Windows USB Device E
 
 ### HID Descriptor
 
-Raw HID descriptor based on actual Chunithm controller:
+Raw HID descriptor based on actual Chusan controller:
 
 ```c
 #define RAWHID_USAGE_PAGE 0xFFC0
@@ -162,16 +162,16 @@ Raw HID descriptor based on actual Chunithm controller:
 uint8_t const desc_hid_report[] = {
     0x06, lowByte(RAWHID_USAGE_PAGE), highByte(RAWHID_USAGE_PAGE),
     0x0A, lowByte(RAWHID_USAGE), highByte(RAWHID_USAGE),
-    
+
     0xA1, 0x01,       // Collection 0x01
     0x75, 0x08,       // report size = 8 bits
     0x15, 0x00,       // logical minimum = 0
     0x26, 0xFF, 0x00, // logical maximum = 255
-    
+
     0x95, 45,         // report count TX (input to PC)
     0x09, 0x01,       // usage
     0x81, 0x02,       // Input (array)
-    
+
     0x95, 61,         // report count RX (output from PC, for RGB - not used)
     0x09, 0x02,       // usage
     0x91, 0x02,       // Output (array)
@@ -238,7 +238,7 @@ Game Application
 
 Create a kernel-mode driver using Windows Driver Kit (WDK):
 
-**1. Driver Entry Point** (`ChunithmUDE.c`):
+**1. Driver Entry Point** (`ChusanUDE.c`):
 
 ```c
 #include <ntddk.h>
@@ -281,7 +281,7 @@ NTSTATUS DriverEntry(
     NTSTATUS status;
 
     WDF_DRIVER_CONFIG_INIT(&config, DeviceAdd);
-    
+
     status = WdfDriverCreate(
         DriverObject,
         RegistryPath,
@@ -305,35 +305,35 @@ NTSTATUS DeviceAdd(
     WDFDEVICE device;
     PDEVICE_CONTEXT deviceContext;
     UDECX_USB_DEVICE_STATE_CHANGE_CALLBACKS callbacks;
-    
+
     // Configure UDE
     status = UdecxInitializeWdfDeviceInit(DeviceInit);
     if (!NT_SUCCESS(status)) return status;
-    
+
     // Create device
     WDF_OBJECT_ATTRIBUTES deviceAttributes;
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&deviceAttributes, DEVICE_CONTEXT);
-    
+
     status = WdfDeviceCreate(&DeviceInit, &deviceAttributes, &device);
     if (!NT_SUCCESS(status)) return status;
-    
+
     deviceContext = GetDeviceContext(device);
-    
+
     // Create USB device
     UDECX_USB_DEVICE_CALLBACKS udecxCallbacks;
     UDECX_USB_DEVICE_CALLBACKS_INIT(&udecxCallbacks);
-    
+
     UDECXUSBDEVICE_INIT* usbDeviceInit;
     usbDeviceInit = UdecxUsbDeviceInitAllocate(device);
-    
+
     // Set descriptors
     UdecxUsbDeviceInitSetDeviceDescriptor(usbDeviceInit, &g_UsbDeviceDescriptor);
-    
+
     // Create UDE USB device
-    status = UdecxUsbDeviceCreate(&usbDeviceInit, 
+    status = UdecxUsbDeviceCreate(&usbDeviceInit,
                                    WDF_NO_OBJECT_ATTRIBUTES,
                                    &deviceContext->UdecxUsbDevice);
-    
+
     return status;
 }
 ```
@@ -348,17 +348,17 @@ NTSTATUS SendHIDReport(
 ) {
     WDFREQUEST request;
     NTSTATUS status;
-    
+
     // Get pending interrupt IN request
     status = WdfIoQueueRetrieveNextRequest(
         DeviceContext->InterruptInQueue,
         &request
     );
-    
+
     if (!NT_SUCCESS(status)) {
         return status;
     }
-    
+
     // Copy report data to request
     PVOID buffer;
     size_t bufferLength;
@@ -368,12 +368,12 @@ NTSTATUS SendHIDReport(
         &buffer,
         &bufferLength
     );
-    
+
     if (NT_SUCCESS(status)) {
         RtlCopyMemory(buffer, ReportData, ReportLength);
         WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, ReportLength);
     }
-    
+
     return status;
 }
 ```
@@ -387,25 +387,25 @@ import ctypes
 from ctypes import wintypes
 import struct
 
-class ChunithmUDEController:
-    def __init__(self, device_path=r"\\.\ChunithmController"):
+class ChusanUDEController:
+    def __init__(self, device_path=r"\\.\ChusanController"):
         """Initialize connection to UDE driver."""
         self.device_path = device_path
         self.handle = None
-        
+
         # IOCTL codes for driver communication
         self.IOCTL_SEND_REPORT = self._CTL_CODE(0x8000, 0x800, 0, 3)
-        
+
         self._open_device()
-    
+
     def _CTL_CODE(self, DeviceType, Function, Method, Access):
         """Calculate IOCTL control code."""
         return (DeviceType << 16) | (Access << 14) | (Function << 2) | Method
-    
+
     def _open_device(self):
         """Open handle to UDE driver."""
         kernel32 = ctypes.windll.kernel32
-        
+
         self.handle = kernel32.CreateFileW(
             self.device_path,
             0xC0000000,  # GENERIC_READ | GENERIC_WRITE
@@ -415,10 +415,10 @@ class ChunithmUDEController:
             0,
             None
         )
-        
+
         if self.handle == -1:
             raise RuntimeError(f"Failed to open device: {self.device_path}")
-    
+
     def send_state(self, touch_zones, air_sensors):
         """Send controller state to UDE driver."""
         # Build IR value (6 air sensors in low 6 bits)
@@ -426,10 +426,10 @@ class ChunithmUDEController:
         for i in range(6):
             if air_sensors[i]:
                 ir_value |= (1 << i)
-        
+
         # Build touch values (0x00 = not touched, 0x64 = touched)
         touch_values = [0x64 if touch_zones[i] else 0x00 for i in range(32)]
-        
+
         # Pack HID report (45 bytes)
         report = struct.pack(
             'BB32B11B',
@@ -439,11 +439,11 @@ class ChunithmUDEController:
             0,                  # CardStatus (0 = no card)
             *([0] * 10)         # CardID[10] (all zeros)
         )
-        
+
         # Send to driver via IOCTL
         bytes_returned = wintypes.DWORD()
         kernel32 = ctypes.windll.kernel32
-        
+
         success = kernel32.DeviceIoControl(
             self.handle,
             self.IOCTL_SEND_REPORT,
@@ -454,9 +454,9 @@ class ChunithmUDEController:
             ctypes.byref(bytes_returned),
             None
         )
-        
+
         return success
-    
+
     def close(self):
         """Close device handle."""
         if self.handle:
@@ -464,7 +464,7 @@ class ChunithmUDEController:
             self.handle = None
 
 # Usage example
-controller = ChunithmUDEController()
+controller = ChusanUDEController()
 
 # Send state
 touch_zones = [False] * 32
@@ -504,7 +504,7 @@ bcdedit /set testsigning on
 **Install Driver:**
 
 ```cmd
-pnputil /add-driver ChunithmUDE.inf /install
+pnputil /add-driver ChusanUDE.inf /install
 ```
 
 #### Alternative: User-Mode USB Emulation
@@ -527,18 +527,18 @@ import usb.backend.libusb1
 ```yaml
 hid:
   enabled: false  # Requires UDE driver installation
-  
-  # USB device parameters (matching real Chunithm controller)
+
+  # USB device parameters (matching real Chusan controller)
   vendor_id: 0x1973
   product_id: 0x2001
   manufacturer: "ZHOUSENSOR I/O SYSTEM"
   product: "ZhouSensor YubiDeck"
   serial: "OK"
-  
+
   # UDE driver settings
-  driver_path: "\\\\.\\ChunithmController"  # Device path for IOCTL communication
+  driver_path: "\\\\.\\ChusanController"  # Device path for IOCTL communication
   use_ude: true  # Use Windows UDE (kernel driver)
-  
+
   # Alternative: Hardware USB emulation
   # use_ude: false
   # hardware_type: "pico"  # Options: "pico", "arduino", "teensy"
@@ -561,15 +561,15 @@ while True:
     report = device.read(5)
     if report[0] != 0x01:
         continue
-    
+
     # Parse bit-packed state
     touch_zones = []
     for byte_idx in range(4):
         for bit_idx in range(8):
             touch_zones.append((report[byte_idx] >> bit_idx) & 1)
-    
+
     air_sensors = [(report[4] >> i) & 1 for i in range(6)]
-    
+
     # Process state...
 ```
 
@@ -619,7 +619,7 @@ from pynput.keyboard import Controller, Key
 class KeyboardAdapter:
     def __init__(self):
         self.keyboard = Controller()
-        
+
         # Zone key mapping (zone 1-32 -> keys)
         self.zone_keys = [
             '1', '2', '3', '4', '5', '6', '7', '8',
@@ -627,14 +627,14 @@ class KeyboardAdapter:
             'q', 'w', 'e', 'r', 't', 'y', 'u', 'i',
             'o', 'p', '{', '}', ':', '"', '|', '?'
         ]
-        
+
         # Air sensor keys
         self.air_keys = ['a', 's', 'd', 'f', 'g', 'h']
-        
+
         # Current state tracking
         self.zone_state = [False] * 32
         self.air_state = [False] * 6
-    
+
     def send_state(self, touch_zones, air_sensors):
         # Handle touch zones
         for i in range(32):
@@ -646,7 +646,7 @@ class KeyboardAdapter:
                 # Release key
                 self.keyboard.release(self.zone_keys[i])
                 self.zone_state[i] = False
-        
+
         # Handle air sensors
         for i in range(6):
             if air_sensors[i] and not self.air_state[i]:
@@ -662,14 +662,14 @@ class KeyboardAdapter:
 ```yaml
 keyboard:
   enabled: true
-  
+
   # Touch zone keys (32 keys, mapped to zones 1-32)
   touch_zone_keys:
     - "1"  # Zone 1 (bottom-right)
     - "2"  # Zone 2 (top-right)
     - "3"  # Zone 3
     # ... (32 total)
-  
+
   # Air sensor keys (6 keys)
   air_sensor_keys:
     - "a"  # Air 0 (17.9cm)
@@ -678,7 +678,7 @@ keyboard:
     - "f"  # Air 3 (28.1cm)
     - "g"  # Air 4 (31.5cm)
     - "h"  # Air 5 (34.9cm)
-  
+
   # Optional key modifiers (e.g., for special combinations)
   use_modifiers: false
   modifier_keys: []  # e.g., ["shift", "ctrl"]
@@ -722,16 +722,16 @@ Custom UDP-based protocol for low-latency local or network communication.
 **Packet Structure:**
 
 ```text
-Offset | Size | Type     | Description
--------|------|----------|----------------------------------
-0x00   | 4    | char[4]  | Magic number "CHUN"
-0x04   | 2    | uint16   | Protocol version (0x0001)
-0x06   | 2    | uint16   | Packet sequence number
-0x08   | 8    | uint64   | Timestamp (microseconds since epoch)
-0x10   | 4    | byte[4]  | Touch zones 1-32 (bit-packed)
-0x14   | 1    | byte     | Air sensors 0-5 (bit 0-5)
-0x15   | 1    | byte     | Reserved flags
-0x16   | 2    | uint16   | CRC-16 checksum
+| Offset | Size | Type    | Description                          |
+| ------ | ---- | ------- | ------------------------------------ |
+| 0x00   | 4    | char[4] | Magic number "CHUN"                  |
+| 0x04   | 2    | uint16  | Protocol version (0x0001)            |
+| 0x06   | 2    | uint16  | Packet sequence number               |
+| 0x08   | 8    | uint64  | Timestamp (microseconds since epoch) |
+| 0x10   | 4    | byte[4] | Touch zones 1-32 (bit-packed)        |
+| 0x14   | 1    | byte    | Air sensors 0-5 (bit 0-5)            |
+| 0x15   | 1    | byte    | Reserved flags                       |
+| 0x16   | 2    | uint16  | CRC-16 checksum                      |
 ```
 
 **Total Size**: 24 bytes per packet
@@ -827,19 +827,19 @@ sequence = 0
 
 def pack_binary_packet(touch_zones, air_sensors):
     global sequence
-    
+
     # Pack touch zones into 4 bytes
     touch_bytes = 0
     for i in range(32):
         if touch_zones[i]:
             touch_bytes |= (1 << i)
-    
+
     # Pack air sensors into 1 byte
     air_byte = 0
     for i in range(6):
         if air_sensors[i]:
             air_byte |= (1 << i)
-    
+
     # Build packet
     packet = struct.pack(
         '<4sHHQ4sBB',
@@ -851,11 +851,11 @@ def pack_binary_packet(touch_zones, air_sensors):
         air_byte,             # Air sensors
         0                     # Reserved
     )
-    
+
     # Calculate CRC-16
     crc = calculate_crc16(packet)
     packet += struct.pack('<H', crc)
-    
+
     sequence += 1
     return packet
 
@@ -875,27 +875,27 @@ sock.bind(('0.0.0.0', 28888))
 
 while True:
     data, addr = sock.recvfrom(1024)
-    
+
     # Verify magic number
     if data[0:4] != b'CHUN':
         continue
-    
+
     # Unpack packet
     magic, version, seq, timestamp = struct.unpack('<4sHHQ', data[0:16])
     touch_bytes = struct.unpack('<I', data[16:20])[0]
     air_byte = data[20]
     crc = struct.unpack('<H', data[22:24])[0]
-    
+
     # Verify CRC
     if not verify_crc16(data[0:22], crc):
         continue
-    
+
     # Extract touch zones
     touch_zones = [(touch_bytes >> i) & 1 for i in range(32)]
-    
+
     # Extract air sensors
     air_sensors = [(air_byte >> i) & 1 for i in range(6)]
-    
+
     # Process state...
 ```
 
@@ -903,17 +903,17 @@ while True:
 
 ## Protocol Comparison
 
-| Protocol | Latency | Packet Size | Ease of Use | Compatibility | Best For |
-|----------|---------|-------------|-------------|---------------|----------|
-| HID (USB) | 2-4ms | 45 bytes | Hard (hardware) | Excellent | Official compatibility |
-| UDP (Binary) | 3-5ms | 24 bytes | Medium | Excellent | Custom games |
-| Serial (COM) | 5-8ms | 33 bytes | Easy | Good | Legacy support |
-| UDP (JSON) | 5-8ms | ~450 bytes | Easy (debug) | Excellent | Development |
-| Keyboard | 10-15ms | N/A | Easy | Universal | Testing/fallback |
+| Protocol     | Latency | Packet Size | Ease of Use     | Compatibility | Best For               |
+| ------------ | ------- | ----------- | --------------- | ------------- | ---------------------- |
+| HID (USB)    | 2-4ms   | 45 bytes    | Hard (hardware) | Excellent     | Official compatibility |
+| UDP (Binary) | 3-5ms   | 24 bytes    | Medium          | Excellent     | Custom games           |
+| Serial (COM) | 5-8ms   | 33 bytes    | Easy            | Good          | Legacy support         |
+| UDP (JSON)   | 5-8ms   | ~450 bytes  | Easy (debug)    | Excellent     | Development            |
+| Keyboard     | 10-15ms | N/A         | Easy            | Universal     | Testing/fallback       |
 
 **Recommendation**:
 
-- **Official Games**: HID USB (native Chunithm protocol, requires hardware)
+- **Official Games**: HID USB (native Chusan protocol, requires hardware)
 - **Custom Games**: UDP Binary (lowest latency, pure software)
 - **Development**: UDP JSON (easy debugging)
 - **Legacy Support**: Serial COM (standard emulator compatibility)
@@ -967,15 +967,15 @@ outputs:
   serial:
     enabled: true
     port: "COM10"
-  
+
   udp:
     enabled: true
     mode: "binary"
     target_port: 28888
-  
+
   hid:
     enabled: false  # Requires USB hardware emulation
-  
+
   keyboard:
     enabled: false  # Enable for testing or fallback
 ```
@@ -1047,7 +1047,7 @@ These can be added while maintaining backward compatibility through protocol ver
 
 ---
 
-**Protocol Version**: 1.0  
-**Last Updated**: 2024-01-10  
-**Author**: Misaka 19465  
+**Protocol Version**: 1.0
+**Last Updated**: 2024-01-10
+**Author**: Misaka 19465
 **Platform**: Windows Only

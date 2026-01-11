@@ -1,6 +1,6 @@
 # ChunIVision
 
-A vision-based controller system for Chunithm rhythm game using dual infrared cameras for touch detection and hand height tracking.
+A vision-based controller system for Chusan rhythm game using dual infrared cameras for touch detection and hand height tracking.
 
 ## Project Overview
 

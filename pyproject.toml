@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chunivision"
 version = "0.1.0"
-description = "Vision-based Chunithm controller using dual infrared cameras"
+description = "Vision-based Chusan controller using dual infrared cameras"
 authors = [{name = "Misaka 19465"}]
 readme = "README.md"
 requires-python = ">=3.8"
