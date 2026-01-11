@@ -138,117 +138,26 @@ class OculusRiftCV1Camera:
         """
         return self.frame_size[1]
 
-    def can_undistort(self, pixel: tuple[float, float]) -> bool:
-        """Check if a pixel can be undistorted.
-
-        Args:
-            pixel: (x, y) coordinate tuple
+    def get_calibration_params(self) -> dict[str, Any]:
+        """Get camera calibration parameters for distortion correction.
 
         Returns:
-            True if pixel is within valid undistortion range
-
-        Raises:
-            InvalidParameterError: If pixel is None or invalid
+            Dictionary containing:
+                - fx, fy: Focal lengths
+                - cx, cy: Optical center
+                - k: Lens distortion coefficients [k0, k1, k2, k3]
+                - max_r2: Maximum squared radius for valid undistortion
+                - frame_size: (width, height) tuple
         """
-        if pixel is None or len(pixel) != 2:
-            raise InvalidParameterError("Pixel must be a tuple of (x, y) coordinates")
-        center = (655.052, 475.083)
-        dx = pixel[0] - center[0]
-        dy = pixel[1] - center[1]
-        return (dx * dx + dy * dy) < self.max_r2
-
-    def undistort(self, pixel: tuple[float, float]) -> tuple[float, float]:
-        """Convert a distorted pixel coordinate to undistorted coordinate.
-
-        Args:
-            pixel: (x, y) coordinate in distorted (raw camera) space
-
-        Returns:
-            (x, y) coordinate in undistorted (corrected) space
-
-        Raises:
-            InvalidParameterError: If pixel is None or invalid
-        """
-        if pixel is None or len(pixel) != 2:
-            raise InvalidParameterError("Pixel must be a tuple of (x, y) coordinates")
-        center = (655.052, 475.083)
-        kappas = (5.16403e-07, 2.44492e-13, 6.881e-19)
-        rhos = (-8.66716e-07, 8.37108e-07)
-        dx = pixel[0] - center[0]
-        dy = pixel[1] - center[1]
-        r2 = dx * dx + dy * dy
-        radial = 0.0
-        for kappa in reversed(kappas):
-            radial = (radial + kappa) * r2
-        radial += 1.0
-        return (
-            center[0]
-            + dx * radial
-            + 2.0 * rhos[0] * dx * dy
-            + rhos[1] * (r2 + 2.0 * dx * dx),
-            center[1]
-            + dy * radial
-            + rhos[0] * (r2 + 2.0 * dy * dy)
-            + 2.0 * rhos[1] * dx * dy,
-        )
-
-    def distort(
-        self,
-        pixel: tuple[float, float],
-        max_iterations: int = 20,
-        tolerance: float = 1e-6,
-    ) -> tuple[float, float]:
-        """Convert an undistorted pixel coordinate to distorted coordinate (inverse of undistort).
-
-        This is needed for creating remap tables with OpenCV, where for each output (undistorted)
-        pixel we need to find which input (distorted) pixel to sample from.
-
-        Args:
-            pixel: (x, y) coordinate in undistorted (corrected) space
-            max_iterations: Maximum number of Newton-Raphson iterations (must be > 0)
-            tolerance: Convergence tolerance in pixels (must be > 0)
-
-        Raises:
-            InvalidParameterError: If parameters are invalid
-
-        Returns:
-            (x, y) coordinate in distorted (raw camera) space
-        """
-        if pixel is None or len(pixel) != 2:
-            raise InvalidParameterError("Pixel must be a tuple of (x, y) coordinates")
-        if max_iterations <= 0:
-            raise InvalidParameterError(
-                f"max_iterations must be > 0, got {max_iterations}"
-            )
-        if tolerance <= 0:
-            raise InvalidParameterError(f"Tolerance must be > 0, got {tolerance}")
-        # Use fixed-point iteration to find the distorted point
-        # Start with the undistorted point as initial guess
-        distorted_x, distorted_y = pixel
-
-        for _ in range(max_iterations):
-            # Compute undistorted position from current distorted guess
-            undistorted_x, undistorted_y = self.undistort((distorted_x, distorted_y))
-
-            # Compute error
-            error_x = undistorted_x - pixel[0]
-            error_y = undistorted_y - pixel[1]
-
-            # Check for convergence
-            error = math.sqrt(error_x * error_x + error_y * error_y)
-            if error < tolerance:
-                break
-
-            # Update distorted position (simple fixed-point iteration)
-            # This works because the distortion is small
-            distorted_x -= error_x
-            distorted_y -= error_y
-
-        # Clamp to valid image bounds to prevent out-of-bounds sampling
-        distorted_x = max(0.0, min(float(self.frame_size[0] - 1), distorted_x))
-        distorted_y = max(0.0, min(float(self.frame_size[1] - 1), distorted_y))
-
-        return (distorted_x, distorted_y)
+        return {
+            "fx": self.fx,
+            "fy": self.fy,
+            "cx": self.cx,
+            "cy": self.cy,
+            "k": self.k.copy(),
+            "max_r2": self.max_r2,
+            "frame_size": self.frame_size,
+        }
 
     def start_streaming(self, callback: StreamingCallback) -> None:
         """Start video streaming.

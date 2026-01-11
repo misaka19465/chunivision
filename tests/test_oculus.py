@@ -716,54 +716,6 @@ class TestOculusRiftCV1Camera:
             assert camera.get_frame_height() == 960
             camera.close()
 
-    def test_can_undistort(self, mock_context, mock_device, mock_handle):
-        """Test undistortion validity check."""
-        mock_device.open.return_value = mock_handle
-        mock_device.getSerialNumber.return_value = "TEST_SERIAL"
-        mock_context.getDeviceList.return_value = [mock_device]
-
-        with patch.object(OculusRiftCV1Camera, "_setup_device"):
-            camera = OculusRiftCV1Camera(
-                serial_number="TEST_SERIAL", context=mock_context
-            )
-            # Set max_r2 to a known value for testing
-            camera.max_r2 = 655 * 655 + 475 * 475
-            # Center pixel should be valid
-            assert camera.can_undistort((655.0, 475.0))
-            # Far corner should be invalid (beyond max_r2)
-            assert not camera.can_undistort((0.0, 0.0))
-            camera.close()
-
-    def test_undistort_distort_roundtrip(self, mock_context, mock_device, mock_handle):
-        """Test undistort/distort form approximate inverse."""
-        mock_device.open.return_value = mock_handle
-        mock_device.getSerialNumber.return_value = "TEST_SERIAL"
-        mock_context.getDeviceList.return_value = [mock_device]
-
-        with patch.object(OculusRiftCV1Camera, "_setup_device"):
-            camera = OculusRiftCV1Camera(
-                serial_number="TEST_SERIAL", context=mock_context
-            )
-            camera.max_r2 = 655 * 655 + 475 * 475  # Allow all pixels
-
-            # Test roundtrip for several points
-            test_points = [
-                (655.0, 475.0),  # Center
-                (700.0, 500.0),
-                (600.0, 450.0),
-                (800.0, 600.0),
-            ]
-
-            for original in test_points:
-                undistorted = camera.undistort(original)
-                back_to_distorted = camera.distort(undistorted)
-
-                # Should be close (within 1 pixel)
-                assert abs(back_to_distorted[0] - original[0]) < 1.0
-                assert abs(back_to_distorted[1] - original[1]) < 1.0
-
-            camera.close()
-
     def test_start_streaming_twice_error(self, mock_context, mock_device, mock_handle):
         """Test that starting streaming twice raises error."""
         mock_device.open.return_value = mock_handle
@@ -989,69 +941,6 @@ class TestOculusCameraAdvanced:
         handle.controlWrite.return_value = None
         handle.getConfiguration.return_value = 1
         return handle
-
-    def test_distort_invalid_parameters(self, mock_context, mock_device, mock_handle):
-        """Test distort with invalid parameters."""
-        mock_device.open.return_value = mock_handle
-        mock_device.getSerialNumber.return_value = "TEST_SERIAL"
-        mock_context.getDeviceList.return_value = [mock_device]
-
-        with patch.object(OculusRiftCV1Camera, "_setup_device"):
-            camera = OculusRiftCV1Camera(
-                serial_number="TEST_SERIAL", context=mock_context
-            )
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.distort(None)
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.distort((1.0,))  # Only 1 element
-
-            with pytest.raises(InvalidParameterError, match="max_iterations"):
-                camera.distort((100.0, 100.0), max_iterations=0)
-
-            with pytest.raises(InvalidParameterError, match="Tolerance"):
-                camera.distort((100.0, 100.0), tolerance=0)
-
-            camera.close()
-
-    def test_undistort_invalid_pixel(self, mock_context, mock_device, mock_handle):
-        """Test undistort with invalid pixel."""
-        mock_device.open.return_value = mock_handle
-        mock_device.getSerialNumber.return_value = "TEST_SERIAL"
-        mock_context.getDeviceList.return_value = [mock_device]
-
-        with patch.object(OculusRiftCV1Camera, "_setup_device"):
-            camera = OculusRiftCV1Camera(
-                serial_number="TEST_SERIAL", context=mock_context
-            )
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.undistort(None)
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.undistort((1.0,))
-
-            camera.close()
-
-    def test_can_undistort_invalid_pixel(self, mock_context, mock_device, mock_handle):
-        """Test can_undistort with invalid pixel."""
-        mock_device.open.return_value = mock_handle
-        mock_device.getSerialNumber.return_value = "TEST_SERIAL"
-        mock_context.getDeviceList.return_value = [mock_device]
-
-        with patch.object(OculusRiftCV1Camera, "_setup_device"):
-            camera = OculusRiftCV1Camera(
-                serial_number="TEST_SERIAL", context=mock_context
-            )
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.can_undistort(None)
-
-            with pytest.raises(InvalidParameterError, match="Pixel must be"):
-                camera.can_undistort((1.0,))
-
-            camera.close()
 
     def test_init_with_context(self, mock_context, mock_device, mock_handle):
         """Test initialization with provided context."""

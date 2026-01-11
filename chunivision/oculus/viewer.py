@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -17,6 +18,140 @@ except ImportError:
     from triple_buffer import TripleBuffer
 
 
+class DistortionCalibration:
+    """Lens distortion calibration for Oculus Rift CV1 camera.
+
+    This class handles conversion between distorted (raw camera) and undistorted
+    (corrected) pixel coordinates using the camera's calibration parameters.
+    """
+
+    def __init__(
+        self,
+        frame_size: tuple[int, int] = (1280, 960),
+        center: tuple[float, float] = (655.052, 475.083),
+        kappas: tuple[float, float, float] = (5.16403e-07, 2.44492e-13, 6.881e-19),
+        rhos: tuple[float, float] = (-8.66716e-07, 8.37108e-07),
+        max_r2: float = 0.0,
+    ) -> None:
+        """Initialize distortion calibration.
+
+        Args:
+            frame_size: Camera frame size (width, height)
+            center: Optical center (cx, cy)
+            kappas: Radial distortion coefficients
+            rhos: Tangential distortion coefficients
+            max_r2: Maximum squared radius for valid undistortion
+        """
+        self.frame_size = frame_size
+        self.center = center
+        self.kappas = kappas
+        self.rhos = rhos
+        self.max_r2 = max_r2
+
+    def can_undistort(self, pixel: tuple[float, float]) -> bool:
+        """Check if a pixel can be undistorted.
+
+        Args:
+            pixel: (x, y) coordinate tuple
+
+        Returns:
+            True if pixel is within valid undistortion range
+        """
+        if pixel is None or len(pixel) != 2:
+            return False
+        dx = pixel[0] - self.center[0]
+        dy = pixel[1] - self.center[1]
+        return (dx * dx + dy * dy) < self.max_r2
+
+    def undistort(self, pixel: tuple[float, float]) -> tuple[float, float]:
+        """Convert a distorted pixel coordinate to undistorted coordinate.
+
+        Args:
+            pixel: (x, y) coordinate in distorted (raw camera) space
+
+        Returns:
+            (x, y) coordinate in undistorted (corrected) space
+        """
+        if pixel is None or len(pixel) != 2:
+            raise ValueError("Pixel must be a tuple of (x, y) coordinates")
+
+        dx = pixel[0] - self.center[0]
+        dy = pixel[1] - self.center[1]
+        r2 = dx * dx + dy * dy
+
+        # Compute radial distortion
+        radial = 0.0
+        for kappa in reversed(self.kappas):
+            radial = (radial + kappa) * r2
+        radial += 1.0
+
+        # Apply radial and tangential distortion
+        return (
+            self.center[0]
+            + dx * radial
+            + 2.0 * self.rhos[0] * dx * dy
+            + self.rhos[1] * (r2 + 2.0 * dx * dx),
+            self.center[1]
+            + dy * radial
+            + self.rhos[0] * (r2 + 2.0 * dy * dy)
+            + 2.0 * self.rhos[1] * dx * dy,
+        )
+
+    def distort(
+        self,
+        pixel: tuple[float, float],
+        max_iterations: int = 20,
+        tolerance: float = 1e-6,
+    ) -> tuple[float, float]:
+        """Convert an undistorted pixel coordinate to distorted coordinate (inverse of undistort).
+
+        This is needed for creating remap tables with OpenCV, where for each output (undistorted)
+        pixel we need to find which input (distorted) pixel to sample from.
+
+        Args:
+            pixel: (x, y) coordinate in undistorted (corrected) space
+            max_iterations: Maximum number of Newton-Raphson iterations (must be > 0)
+            tolerance: Convergence tolerance in pixels (must be > 0)
+
+        Returns:
+            (x, y) coordinate in distorted (raw camera) space
+        """
+        if pixel is None or len(pixel) != 2:
+            raise ValueError("Pixel must be a tuple of (x, y) coordinates")
+        if max_iterations <= 0:
+            raise ValueError(f"max_iterations must be > 0, got {max_iterations}")
+        if tolerance <= 0:
+            raise ValueError(f"Tolerance must be > 0, got {tolerance}")
+
+        # Use fixed-point iteration to find the distorted point
+        # Start with the undistorted point as initial guess
+        distorted_x, distorted_y = pixel
+
+        for _ in range(max_iterations):
+            # Compute undistorted position from current distorted guess
+            undistorted_x, undistorted_y = self.undistort((distorted_x, distorted_y))
+
+            # Compute error
+            error_x = undistorted_x - pixel[0]
+            error_y = undistorted_y - pixel[1]
+
+            # Check for convergence
+            error = math.sqrt(error_x * error_x + error_y * error_y)
+            if error < tolerance:
+                break
+
+            # Update distorted position (simple fixed-point iteration)
+            # This works because the distortion is small
+            distorted_x -= error_x
+            distorted_y -= error_y
+
+        # Clamp to valid image bounds to prevent out-of-bounds sampling
+        distorted_x = max(0.0, min(float(self.frame_size[0] - 1), distorted_x))
+        distorted_y = max(0.0, min(float(self.frame_size[1] - 1), distorted_y))
+
+        return (distorted_x, distorted_y)
+
+
 def run_viewer(
     device_index: int, undistort: bool = False, compare: bool = False
 ) -> int:
@@ -24,6 +159,14 @@ def run_viewer(
     frames = TripleBuffer[bytes]()
     save_next = False
     save_index = 0
+
+    # Get calibration parameters from camera and create distortion calibration instance
+    cal_params = camera.get_calibration_params()
+    calibration = DistortionCalibration(
+        frame_size=cal_params["frame_size"],
+        center=(cal_params["cx"], cal_params["cy"]),
+        max_r2=cal_params["max_r2"],
+    )
 
     def on_frame(frame_bytes: bytes) -> None:
         nonlocal save_next, save_index
@@ -78,7 +221,7 @@ def run_viewer(
                 for xx in range(w):
                     # For this output (undistorted) pixel, find the input (distorted) pixel
                     # Use distort() to go from undistorted -> distorted space
-                    dx, dy = camera.distort((float(xx), float(yy)))
+                    dx, dy = calibration.distort((float(xx), float(yy)))
                     map_x[yy, xx] = dx
                     map_y[yy, xx] = dy
 
