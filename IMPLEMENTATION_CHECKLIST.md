@@ -102,7 +102,7 @@ Use this checklist to track your implementation progress.
   - [x] Real-time undistortion
   - [x] Side-by-side comparison mode
 
-- [x] **__init__.py**
+- [x] **\_\_init\_\_.py**
   - [x] Package exports
   - [x] Version information
   - [x] Documentation
@@ -487,7 +487,7 @@ Before considering the project complete:
 
 Use this space to track issues, ideas, or important findings:
 
-```
+```text
 [Date] [Note]
 ---
 Example:
