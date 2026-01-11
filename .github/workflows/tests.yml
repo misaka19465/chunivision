@@ -37,12 +37,11 @@ jobs:
         black --check chunivision tests
 
     - name: Run tests with pytest
-      run: PYTHONPATH=$(pwd) pytest tests -v --tb=short
+      run: PYTHONPATH=$(pwd) pytest tests -v --tb=short --junitxml=test-results.xml
 
-    - name: Upload coverage reports
+    - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v6
       with:
-        name: pytest-results-${{ matrix.python-version }}
-        path: |
-          .pytest_cache/
+        name: test-results-${{ matrix.python-version }}
+        path: test-results.xml
