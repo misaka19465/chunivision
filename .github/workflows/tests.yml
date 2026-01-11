@@ -5,14 +5,45 @@ on:
   - pull_request
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      commits: ${{ steps.get-commits.outputs.commits }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get commits
+      id: get-commits
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          # For PR, get commits in the PR
+          COMMITS=$(git log --format='"%H"' ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | jq -s -c .)
+        else
+          # For push, get commits in this push
+          if [ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]; then
+            # New branch, test only the latest commit
+            COMMITS='["${{ github.sha }}"]'
+          else
+            COMMITS=$(git log --format='"%H"' ${{ github.event.before }}..${{ github.event.after }} | jq -s -c .)
+          fi
+        fi
+        echo "commits=$COMMITS" >> $GITHUB_OUTPUT
+        echo "Testing commits: $COMMITS"
+
   test:
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
+        commit: ${{ fromJson(needs.prepare.outputs.commits) }}
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ matrix.commit }}
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -43,5 +74,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v6
       with:
-        name: test-results-${{ matrix.python-version }}
+        name: test-results-${{ matrix.python-version }}-${{ matrix.commit }}
         path: test-results.xml
