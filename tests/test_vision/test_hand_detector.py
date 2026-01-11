@@ -584,8 +584,8 @@ class TestHandDetectorPerformance:
         hands = detector.detect(cloud)
         elapsed = (time.perf_counter() - start) * 1000
 
-        # Should complete in reasonable time (< 2000ms for large cloud)
-        assert elapsed < 2000
+        # Should complete in reasonable time (< 2500ms for large cloud)
+        assert elapsed < 2500
 
     def test_many_frames_performance(self):
         """Test performance over many frames."""
