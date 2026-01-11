@@ -330,31 +330,52 @@ class ChunIVisionApp:
 
     def run_calibration(self) -> int:
         """
-        Run the calibration workflow.
+        Run the two-stage calibration workflow.
+
+        Stage 1: Chessboard stereo calibration (A4 paper, 9×6 pattern)
+        Stage 2: Touch zone calibration (white paper matching game area)
 
         Returns:
             Exit code (0 for success, non-zero for error)
         """
-        self.logger.info("Starting ChunIVision calibration mode")
+        self.logger.info("Starting ChunIVision two-stage calibration")
+        self.logger.info("=" * 60)
+        self.logger.info("Print calibration pattern: docs/calibration_chessboard.svg")
+        self.logger.info("Print at 100% scale (no fit-to-page)")
+        self.logger.info("=" * 60)
 
         try:
-            # Create calibrator with settings from config
+            from .calibration.calibrator import CalibrationConfig
+            from .calibration.chessboard_calibration import ChessboardConfig
+            from .calibration.touchzone_calibration import TouchZoneConfig
+
+            # Create calibration configuration
             resolution = self.settings.camera.resolution
-            calibrator = Calibrator(
-                board_physical_size=(
-                    self.settings.calibration.board_width,
-                    self.settings.calibration.board_height,
-                ),
-                zone_grid=(self.settings.zones.num_cols, self.settings.zones.num_rows),
-                image_size=(resolution[0], resolution[1]),
-                stereo_baseline=self.settings.camera.baseline_distance,
+
+            # Chessboard config (matches docs/calibration_chessboard.svg)
+            chessboard_config = ChessboardConfig(
+                pattern_size=(9, 6),  # 9×6 inner corners
+                square_size=2.5,  # 25mm squares
             )
 
-            # For calibration, we need to initialize cameras directly
-            # This is a simplified flow - in production, you'd use CameraManager
+            # Touch zone config (matches game touch area)
+            touchzone_config = TouchZoneConfig(
+                zone_grid=(self.settings.zones.num_cols, self.settings.zones.num_rows),
+                zone_width_cm=self.settings.zones.zone_width,
+                zone_height_cm=self.settings.zones.zone_height,
+            )
+
+            calibration_config = CalibrationConfig(
+                chessboard_config=chessboard_config,
+                touchzone_config=touchzone_config,
+            )
+
+            calibrator = Calibrator(config=calibration_config)
+
+            # Initialize cameras
             from .oculus.oculus_camera import OculusRiftCV1Camera
 
-            self.logger.info("Initializing cameras for calibration...")
+            self.logger.info("Initializing cameras...")
 
             try:
                 left_camera = OculusRiftCV1Camera(
@@ -368,20 +389,26 @@ class ChunIVisionApp:
                 return 1
 
             try:
-                # Run interactive calibration
-                self.logger.info(
-                    "Starting interactive calibration. Follow the on-screen instructions."
-                )
-                calibration_data = calibrator.run_interactive_calibration(
-                    left_camera, right_camera
-                )
+                # Run two-stage calibration
+                self.logger.info("Starting two-stage calibration workflow...")
+                result = calibrator.run_full_calibration(left_camera, right_camera)
 
-                # Save calibration data
+                # Convert to CalibrationData and save
+                calibration_data = result.to_calibration_data()
+
                 calibration_path = Path(self.settings.calibration.file)
                 calibration_path.parent.mkdir(parents=True, exist_ok=True)
                 calibration_data.save(str(calibration_path))
 
-                self.logger.info(f"Calibration saved to {calibration_path}")
+                self.logger.info("=" * 60)
+                self.logger.info(f"Calibration completed successfully!")
+                self.logger.info(f"Overall quality: {result.overall_quality:.1%}")
+                self.logger.info(
+                    f"Stereo baseline: {result.stereo_result.baseline:.1f}cm"
+                )
+                self.logger.info(f"Saved to: {calibration_path}")
+                self.logger.info("=" * 60)
+
                 return 0
 
             finally:
@@ -393,6 +420,9 @@ class ChunIVisionApp:
             return 1
         except Exception as e:
             self.logger.error(f"Unexpected error during calibration: {e}")
+            import traceback
+
+            traceback.print_exc()
             return 1
 
     def run_debug(self) -> int:
