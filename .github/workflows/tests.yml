@@ -24,6 +24,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Add project to PYTHONPATH
+      run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+
     - name: Lint with flake8
       run: |
         flake8 chunivision tests --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -34,8 +37,7 @@ jobs:
         black --check chunivision tests
 
     - name: Run tests with pytest
-      run: |
-        pytest tests -v --tb=short
+      run: PYTHONPATH=$(pwd) pytest tests -v --tb=short
 
     - name: Upload coverage reports
       if: always()
