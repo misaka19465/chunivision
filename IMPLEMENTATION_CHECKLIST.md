@@ -225,13 +225,14 @@ Use this checklist to track your implementation progress.
 
 ### Zone Selector (`chunivision/calibration/zone_selector.py`)
 
-- [ ] **ZoneSelector class**
-  - [ ] GUI window creation
-  - [ ] Point selection by click
-  - [ ] Visual feedback (markers)
-  - [ ] Zoom functionality
-  - [ ] Undo last point
-  - [ ] Preview with overlay
+- [x] **ZoneSelector class**
+  - [x] GUI window creation
+  - [x] Point selection by click
+  - [x] Visual feedback (markers)
+  - [x] Zoom functionality
+  - [x] Undo last point
+  - [x] Preview with overlay
+  - [x] Unit tests (66 tests)
   - [ ] Manual tests (requires GUI)
 
 ### Transform Calculator (`chunivision/calibration/transform_calculator.py`)
