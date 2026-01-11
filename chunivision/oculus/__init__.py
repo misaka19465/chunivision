@@ -23,7 +23,7 @@ Example:
 """
 
 __version__ = "0.1.0"
-__author__ = "ChunIVision Project"
+__author__ = "Misaka 19465"
 
 from .ar0134 import AR0134
 from .esp770u import ESP770U
