@@ -182,12 +182,12 @@ Use this checklist to track your implementation progress.
 
 ### Touch Detection (`chunivision/vision/touch_detector.py`)
 
-- [ ] **TouchDetector class**
-  - [ ] Hand-to-zone mapping
-  - [ ] Touch threshold logic
-  - [ ] Multi-touch handling
-  - [ ] TouchState creation
-  - [ ] Unit tests
+- [x] **TouchDetector class**
+  - [x] Hand-to-zone mapping
+  - [x] Touch threshold logic
+  - [x] Multi-touch handling
+  - [x] TouchState creation
+  - [x] Unit tests (46 tests)
 
 ### Height Estimation (`chunivision/vision/height_estimator.py`)
 
