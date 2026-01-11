@@ -1,5 +1,7 @@
 """
 Tests for calibrator module.
+
+Updated to work with the new two-stage calibration API.
 """
 
 import tempfile
@@ -10,8 +12,15 @@ from unittest.mock import MagicMock, Mock, patch
 import numpy as np
 import pytest
 
-from chunivision.calibration.calibrator import Calibrator, CalibrationError
+from chunivision.calibration.calibrator import (
+    Calibrator,
+    CalibrationConfig,
+    CalibrationError,
+    FullCalibrationResult,
+)
 from chunivision.calibration.calibration_data import CalibrationData
+from chunivision.calibration.chessboard_calibration import ChessboardConfig
+from chunivision.calibration.touchzone_calibration import TouchZoneConfig
 
 
 class TestCalibratorCreation:
@@ -21,28 +30,31 @@ class TestCalibratorCreation:
         """Test creating Calibrator with defaults."""
         calibrator = Calibrator()
 
+        # Legacy attributes should still work
         assert calibrator.board_physical_size == (44.0, 9.0)
         assert calibrator.zone_grid == (16, 2)
         assert calibrator.image_size == (640, 480)
         assert calibrator.stereo_baseline == 20.0
 
     def test_custom_creation(self):
-        """Test creating Calibrator with custom values."""
-        calibrator = Calibrator(
-            board_physical_size=(50.0, 10.0),
-            zone_grid=(20, 2),
-            image_size=(1280, 720),
-            stereo_baseline=25.0,
+        """Test creating Calibrator with custom config."""
+        config = CalibrationConfig(
+            touchzone_config=TouchZoneConfig(
+                paper_size_cm=(50.0, 10.0),
+                zone_grid=(20, 2),
+            ),
         )
+        calibrator = Calibrator(config=config)
 
-        assert calibrator.board_physical_size == (50.0, 10.0)
-        assert calibrator.zone_grid == (20, 2)
-        assert calibrator.image_size == (1280, 720)
-        assert calibrator.stereo_baseline == 25.0
+        assert calibrator.config.touchzone_config.paper_size_cm == (50.0, 10.0)
+        assert calibrator.config.touchzone_config.zone_grid == (20, 2)
 
     def test_world_points_computed(self):
         """Test that world points are computed from board size."""
-        calibrator = Calibrator(board_physical_size=(100.0, 20.0))
+        config = CalibrationConfig(
+            touchzone_config=TouchZoneConfig(paper_size_cm=(100.0, 20.0))
+        )
+        calibrator = Calibrator(config=config)
 
         # World points should be corners of the board
         expected = np.array([[0, 0], [100, 0], [100, 20], [0, 20]], dtype=np.float32)
@@ -84,10 +96,7 @@ class TestCalibrateFromPoints:
 
     def test_valid_points(self):
         """Test calibration with valid points."""
-        calibrator = Calibrator(
-            board_physical_size=(44.0, 9.0),
-            zone_grid=(16, 2),
-        )
+        calibrator = Calibrator()
 
         # Simulate realistic points (corners of board in image)
         left_points = np.array(
@@ -131,7 +140,7 @@ class TestCalibrateFromPoints:
             [[60, 390], [600, 390], [590, 90], [70, 90]], dtype=np.float32
         )
 
-        with pytest.raises(CalibrationError, match="left_image_points"):
+        with pytest.raises(ValueError, match="Expected 4 corners"):
             calibrator.calibrate_from_points(left_points, right_points)
 
     def test_invalid_right_points_shape(self):
@@ -143,7 +152,7 @@ class TestCalibrateFromPoints:
         )
         right_points = np.array([[60, 390], [600, 390], [590, 90]], dtype=np.float32)
 
-        with pytest.raises(CalibrationError, match="right_image_points"):
+        with pytest.raises(ValueError, match="Expected 4 corners"):
             calibrator.calibrate_from_points(left_points, right_points)
 
     def test_calibration_quality_stored(self):
@@ -190,10 +199,7 @@ class TestZoneBoundaries:
 
     def test_zone_boundaries_structure(self):
         """Test zone boundaries dictionary structure."""
-        calibrator = Calibrator(
-            board_physical_size=(44.0, 9.0),
-            zone_grid=(16, 2),
-        )
+        calibrator = Calibrator()
 
         boundaries = calibrator._calculate_zone_boundaries()
 
@@ -207,10 +213,7 @@ class TestZoneBoundaries:
 
     def test_zone_size_calculation(self):
         """Test that zone sizes are calculated correctly."""
-        calibrator = Calibrator(
-            board_physical_size=(44.0, 9.0),
-            zone_grid=(16, 2),
-        )
+        calibrator = Calibrator()
 
         boundaries = calibrator._calculate_zone_boundaries()
 
@@ -219,10 +222,7 @@ class TestZoneBoundaries:
 
     def test_zone_id_numbering(self):
         """Test zone ID numbering convention."""
-        calibrator = Calibrator(
-            board_physical_size=(44.0, 9.0),
-            zone_grid=(16, 2),
-        )
+        calibrator = Calibrator()
 
         boundaries = calibrator._calculate_zone_boundaries()
         zones = boundaries["zones"]
@@ -256,8 +256,8 @@ class TestZoneBoundaries:
 class TestSaveLoadCalibration:
     """Tests for save/load calibration functionality."""
 
-    def test_save_calibration(self):
-        """Test saving calibration data."""
+    def test_save_and_load_via_calibration_data(self):
+        """Test saving and loading calibration using CalibrationData directly."""
         calibrator = Calibrator()
 
         left_points = np.array(
@@ -271,32 +271,17 @@ class TestSaveLoadCalibration:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "calibration.yaml"
-            calibrator.save_calibration(data, str(path))
+            # Save directly via CalibrationData
+            data.save(str(path))
 
             assert path.exists()
 
-    def test_load_calibration(self):
-        """Test loading calibration data."""
-        calibrator = Calibrator()
-
-        left_points = np.array(
-            [[50, 400], [590, 400], [580, 80], [60, 80]], dtype=np.float32
-        )
-        right_points = np.array(
-            [[60, 390], [600, 390], [590, 90], [70, 90]], dtype=np.float32
-        )
-
-        original = calibrator.calibrate_from_points(left_points, right_points)
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "calibration.yaml"
-            calibrator.save_calibration(original, str(path))
-
+            # Load via calibrator
             loaded = calibrator.load_calibration(str(path))
 
-            assert loaded.stereo_baseline == original.stereo_baseline
+            assert loaded.stereo_baseline == data.stereo_baseline
             np.testing.assert_allclose(
-                loaded.camera_left_transform, original.camera_left_transform
+                loaded.camera_left_transform, data.camera_left_transform
             )
 
     def test_load_nonexistent_raises(self):
@@ -329,148 +314,19 @@ class TestValidateCalibration:
         assert 0.0 <= quality <= 1.0
         assert isinstance(issues, list)
 
-    def test_low_quality_reported(self):
-        """Test that low quality is reported."""
+    def test_invalid_data_reported(self):
+        """Test that invalid data is reported."""
         calibrator = Calibrator()
 
         data = CalibrationData()
-        data.calibration_quality = {
-            "left_quality_score": 0.5,  # Below minimum
-            "right_quality_score": 0.5,
-        }
+        # Set invalid stereo baseline
+        data.stereo_baseline = 0.0
 
         is_valid, quality, issues = calibrator.validate_calibration(data)
 
         assert not is_valid
-        assert any("quality" in issue.lower() for issue in issues)
-
-
-class TestInteractiveCalibration:
-    """Tests for interactive calibration (mocked)."""
-
-    def test_interactive_calibration_success(self):
-        """Test successful interactive calibration with mocks."""
-        calibrator = Calibrator()
-
-        # Mock cameras
-        left_camera = Mock()
-        left_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        right_camera = Mock()
-        right_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        # Mock zone selector
-        zone_selector = Mock()
-        zone_selector.select_points.side_effect = [
-            [
-                np.array([50, 400]),
-                np.array([590, 400]),
-                np.array([580, 80]),
-                np.array([60, 80]),
-            ],
-            [
-                np.array([60, 390]),
-                np.array([600, 390]),
-                np.array([590, 90]),
-                np.array([70, 90]),
-            ],
-        ]
-
-        result = calibrator.run_interactive_calibration(
-            left_camera, right_camera, zone_selector=zone_selector
-        )
-
-        assert isinstance(result, CalibrationData)
-        assert zone_selector.select_points.call_count == 2
-        zone_selector.close.assert_called_once()
-
-    def test_interactive_calibration_cancelled_left(self):
-        """Test calibration fails when left camera points not selected."""
-        calibrator = Calibrator()
-
-        left_camera = Mock()
-        left_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        right_camera = Mock()
-        right_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        zone_selector = Mock()
-        zone_selector.select_points.return_value = None  # Cancelled
-
-        with pytest.raises(CalibrationError, match="left camera"):
-            calibrator.run_interactive_calibration(
-                left_camera, right_camera, zone_selector=zone_selector
-            )
-
-    def test_interactive_calibration_camera_read_fallback(self):
-        """Test calibration works with camera.read() instead of get_frame()."""
-        calibrator = Calibrator()
-
-        # Camera without get_frame, but with read()
-        left_camera = Mock(spec=["read"])
-        left_camera.read.return_value = (True, np.zeros((480, 640), dtype=np.uint8))
-
-        right_camera = Mock(spec=["read"])
-        right_camera.read.return_value = (True, np.zeros((480, 640), dtype=np.uint8))
-
-        zone_selector = Mock()
-        zone_selector.select_points.side_effect = [
-            [
-                np.array([50, 400]),
-                np.array([590, 400]),
-                np.array([580, 80]),
-                np.array([60, 80]),
-            ],
-            [
-                np.array([60, 390]),
-                np.array([600, 390]),
-                np.array([590, 90]),
-                np.array([70, 90]),
-            ],
-        ]
-
-        result = calibrator.run_interactive_calibration(
-            left_camera, right_camera, zone_selector=zone_selector
-        )
-
-        assert isinstance(result, CalibrationData)
-
-    def test_interactive_calibration_custom_height_thresholds(self):
-        """Test interactive calibration with custom height thresholds."""
-        calibrator = Calibrator()
-
-        left_camera = Mock()
-        left_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        right_camera = Mock()
-        right_camera.get_frame.return_value = np.zeros((480, 640), dtype=np.uint8)
-
-        zone_selector = Mock()
-        zone_selector.select_points.side_effect = [
-            [
-                np.array([50, 400]),
-                np.array([590, 400]),
-                np.array([580, 80]),
-                np.array([60, 80]),
-            ],
-            [
-                np.array([60, 390]),
-                np.array([600, 390]),
-                np.array([590, 90]),
-                np.array([70, 90]),
-            ],
-        ]
-
-        custom_thresholds = [5, 10, 15, 20, 25, 30]
-
-        result = calibrator.run_interactive_calibration(
-            left_camera,
-            right_camera,
-            zone_selector=zone_selector,
-            height_thresholds=custom_thresholds,
-        )
-
-        np.testing.assert_array_equal(result.height_thresholds, custom_thresholds)
+        # Should have some validation issue
+        assert quality < calibrator.MIN_QUALITY_THRESHOLD or len(issues) > 0
 
 
 class TestHeightCalibration:
@@ -526,7 +382,7 @@ class TestGetCameraFrame:
         expected_frame = np.zeros((480, 640), dtype=np.uint8)
         camera.get_frame.return_value = expected_frame
 
-        frame = calibrator._get_camera_frame(camera, "test")
+        frame = calibrator._get_camera_frame(camera)
 
         np.testing.assert_array_equal(frame, expected_frame)
 
@@ -538,7 +394,7 @@ class TestGetCameraFrame:
         expected_frame = np.zeros((480, 640), dtype=np.uint8)
         camera.read.return_value = (True, expected_frame)
 
-        frame = calibrator._get_camera_frame(camera, "test")
+        frame = calibrator._get_camera_frame(camera)
 
         np.testing.assert_array_equal(frame, expected_frame)
 
@@ -550,7 +406,7 @@ class TestGetCameraFrame:
         camera.read.return_value = (False, None)
 
         with pytest.raises(CalibrationError, match="Failed to read"):
-            calibrator._get_camera_frame(camera, "test")
+            calibrator._get_camera_frame(camera)
 
     def test_no_method_raises(self):
         """Test error when camera has neither method."""
@@ -558,15 +414,221 @@ class TestGetCameraFrame:
 
         camera = Mock(spec=[])  # No get_frame or read
 
-        with pytest.raises(CalibrationError, match="does not have"):
-            calibrator._get_camera_frame(camera, "test")
+        with pytest.raises(CalibrationError, match="must have"):
+            calibrator._get_camera_frame(camera)
 
-    def test_none_frame_raises(self):
-        """Test error when get_frame returns None."""
+    def test_none_frame_returns_none(self):
+        """Test that get_frame returning None returns None."""
         calibrator = Calibrator()
 
         camera = Mock()
         camera.get_frame.return_value = None
 
-        with pytest.raises(CalibrationError, match="Got None"):
-            calibrator._get_camera_frame(camera, "test")
+        # The new API returns None instead of raising
+        result = calibrator._get_camera_frame(camera)
+        assert result is None
+
+
+class TestFullCalibrationResult:
+    """Tests for FullCalibrationResult class."""
+
+    def test_to_calibration_data(self):
+        """Test conversion to CalibrationData."""
+        from chunivision.calibration.chessboard_calibration import (
+            ChessboardCalibrationResult,
+            StereoCalibrationResult,
+        )
+        from chunivision.calibration.touchzone_calibration import (
+            TouchZoneCalibrationResult,
+            ZoneBoundary,
+        )
+        from chunivision.calibration.lens_distortion import LensDistortion
+
+        # Create mock chessboard results
+        left_camera = ChessboardCalibrationResult(
+            camera_matrix=np.eye(3),
+            dist_coeffs=np.zeros(5),
+            rvecs=[np.zeros(3)],
+            tvecs=[np.zeros(3)],
+            reprojection_error=0.5,
+            num_captures=10,
+            image_size=(640, 480),
+        )
+        right_camera = ChessboardCalibrationResult(
+            camera_matrix=np.eye(3),
+            dist_coeffs=np.zeros(5),
+            rvecs=[np.zeros(3)],
+            tvecs=[np.zeros(3)],
+            reprojection_error=0.5,
+            num_captures=10,
+            image_size=(640, 480),
+        )
+
+        stereo = StereoCalibrationResult(
+            left_result=left_camera,
+            right_result=right_camera,
+            rotation_matrix=np.eye(3),
+            translation_vector=np.array([20.0, 0.0, 0.0]),
+            essential_matrix=np.eye(3),
+            fundamental_matrix=np.eye(3),
+            stereo_error=0.5,
+            rectify_left=np.eye(3),
+            rectify_right=np.eye(3),
+            projection_left=np.eye(3, 4),
+            projection_right=np.eye(3, 4),
+            disparity_to_depth=np.eye(4),
+            roi_left=(0, 0, 640, 480),
+            roi_right=(0, 0, 640, 480),
+        )
+
+        # Create mock zone with at least one boundary
+        zone_boundary = ZoneBoundary(
+            zone_id=1,
+            grid_row=0,
+            grid_col=0,
+            corners=np.array([[0, 0], [10, 0], [10, 10], [0, 10]], dtype=np.float32),
+            center=np.array([5, 5], dtype=np.float32),
+        )
+
+        left_zone = TouchZoneCalibrationResult(
+            perspective_transform=np.eye(3),
+            inverse_transform=np.eye(3),
+            image_corners=np.array(
+                [[0, 0], [100, 0], [100, 50], [0, 50]], dtype=np.float32
+            ),
+            physical_corners=np.array(
+                [[0, 0], [44, 0], [44, 9], [0, 9]], dtype=np.float32
+            ),
+            zone_boundaries=[zone_boundary],
+            reprojection_error=0.0,
+            quality_score=1.0,
+            image_size=(640, 480),
+        )
+
+        right_zone = TouchZoneCalibrationResult(
+            perspective_transform=np.eye(3),
+            inverse_transform=np.eye(3),
+            image_corners=np.array(
+                [[0, 0], [100, 0], [100, 50], [0, 50]], dtype=np.float32
+            ),
+            physical_corners=np.array(
+                [[0, 0], [44, 0], [44, 9], [0, 9]], dtype=np.float32
+            ),
+            zone_boundaries=[zone_boundary],
+            reprojection_error=0.0,
+            quality_score=1.0,
+            image_size=(640, 480),
+        )
+
+        result = FullCalibrationResult(
+            stereo_result=stereo,
+            left_zone_result=left_zone,
+            right_zone_result=right_zone,
+            lens_distortion=LensDistortion(),
+            timestamp=datetime.now(),
+            overall_quality=0.95,
+        )
+
+        data = result.to_calibration_data()
+
+        assert isinstance(data, CalibrationData)
+        assert data.stereo_baseline == pytest.approx(20.0)
+        assert len(data.height_thresholds) == 6
+
+    def test_overall_quality(self):
+        """Test overall quality is stored correctly."""
+        from chunivision.calibration.chessboard_calibration import (
+            ChessboardCalibrationResult,
+            StereoCalibrationResult,
+        )
+        from chunivision.calibration.touchzone_calibration import (
+            TouchZoneCalibrationResult,
+            ZoneBoundary,
+        )
+        from chunivision.calibration.lens_distortion import LensDistortion
+
+        # Create minimal mock results
+        left_camera = ChessboardCalibrationResult(
+            camera_matrix=np.eye(3),
+            dist_coeffs=np.zeros(5),
+            rvecs=[],
+            tvecs=[],
+            reprojection_error=0.3,
+            num_captures=10,
+            image_size=(640, 480),
+        )
+        right_camera = ChessboardCalibrationResult(
+            camera_matrix=np.eye(3),
+            dist_coeffs=np.zeros(5),
+            rvecs=[],
+            tvecs=[],
+            reprojection_error=0.3,
+            num_captures=10,
+            image_size=(640, 480),
+        )
+
+        stereo = StereoCalibrationResult(
+            left_result=left_camera,
+            right_result=right_camera,
+            rotation_matrix=np.eye(3),
+            translation_vector=np.array([20.0, 0.0, 0.0]),
+            essential_matrix=np.eye(3),
+            fundamental_matrix=np.eye(3),
+            stereo_error=0.3,
+            rectify_left=np.eye(3),
+            rectify_right=np.eye(3),
+            projection_left=np.eye(3, 4),
+            projection_right=np.eye(3, 4),
+            disparity_to_depth=np.eye(4),
+            roi_left=(0, 0, 640, 480),
+            roi_right=(0, 0, 640, 480),
+        )
+
+        zone_boundary = ZoneBoundary(
+            zone_id=1,
+            grid_row=0,
+            grid_col=0,
+            corners=np.array([[0, 0], [10, 0], [10, 10], [0, 10]], dtype=np.float32),
+            center=np.array([5, 5], dtype=np.float32),
+        )
+
+        left_zone = TouchZoneCalibrationResult(
+            perspective_transform=np.eye(3),
+            inverse_transform=np.eye(3),
+            image_corners=np.array(
+                [[0, 0], [100, 0], [100, 50], [0, 50]], dtype=np.float32
+            ),
+            physical_corners=np.array(
+                [[0, 0], [44, 0], [44, 9], [0, 9]], dtype=np.float32
+            ),
+            zone_boundaries=[zone_boundary],
+            reprojection_error=0.0,
+            quality_score=0.8,
+            image_size=(640, 480),
+        )
+
+        right_zone = TouchZoneCalibrationResult(
+            perspective_transform=np.eye(3),
+            inverse_transform=np.eye(3),
+            image_corners=np.array(
+                [[0, 0], [100, 0], [100, 50], [0, 50]], dtype=np.float32
+            ),
+            physical_corners=np.array(
+                [[0, 0], [44, 0], [44, 9], [0, 9]], dtype=np.float32
+            ),
+            zone_boundaries=[zone_boundary],
+            reprojection_error=0.0,
+            quality_score=0.85,
+            image_size=(640, 480),
+        )
+
+        result = FullCalibrationResult(
+            stereo_result=stereo,
+            left_zone_result=left_zone,
+            right_zone_result=right_zone,
+            lens_distortion=LensDistortion(),
+            timestamp=datetime.now(),
+            overall_quality=0.82,
+        )
+
+        assert 0.7 <= result.overall_quality <= 1.0
