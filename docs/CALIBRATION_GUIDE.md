@@ -4,10 +4,14 @@ This guide explains how to calibrate the ChunIVision system for accurate touch d
 
 ## Overview
 
-Calibration establishes the relationship between camera images and physical touch zone positions. This involves:
+Calibration establishes the relationship between camera images and physical touch zone positions.
+
+**Important**: The Oculus Rift CV1 cameras have **built-in lens distortion correction** via the oculus library. You do **not** need to perform traditional checkerboard camera calibration to compute distortion coefficients - this is already handled automatically.
+
+The calibration process involves:
 
 1. **Camera Positioning**: Physical setup of cameras
-2. **Zone Calibration**: Mapping camera view to 32 touch zones
+2. **Zone Calibration**: Mapping camera view to 32 touch zones via perspective transformation
 3. **Height Calibration**: Setting height level thresholds
 4. **Verification**: Testing calibration accuracy
 
@@ -17,12 +21,13 @@ Calibration establishes the relationship between camera images and physical touc
 
 ### Hardware Requirements
 
-- **Two infrared cameras**: Compatible with oculus library, with distortion correction
+- **Two Oculus Rift CV1 infrared cameras**: The oculus library automatically handles lens distortion correction using factory calibration parameters stored in the camera
 - **Camera mounting**: Stable mounts allowing ~45° angle toward touch surface
 - **Calibration board**: Rectangular board matching touch zone area dimensions
   - Recommended size: 40cm × 10cm (matches 2 rows × 16 columns of ~2.5cm zones)
   - Material: Rigid, flat surface (cardboard, acrylic, wood)
   - Color: Any (infrared cameras don't depend on color)
+  - **Note**: This is NOT a checkerboard pattern - just a plain rectangular board
 
 ### Software Requirements
 
@@ -38,7 +43,7 @@ Calibration establishes the relationship between camera images and physical touc
 
 ```
                      Top View
-                        
+
     Camera 1                      Camera 2
       (Left)                       (Right)
          \                        /
@@ -56,10 +61,10 @@ Calibration establishes the relationship between camera images and physical touc
             │      (origin)      │
             │                    │
             └────────────────────┘
-            
-            
+
+
                      Side View
-                     
+
     Camera 1/2
          \
           \  ~45°
@@ -68,7 +73,7 @@ Calibration establishes the relationship between camera images and physical touc
     ┌────────────────────┐
     │  Touch Surface     │
     └────────────────────┘
-    
+
 Height: 25-35cm above surface (adjustable)
 ```
 
@@ -153,11 +158,13 @@ Mark the 4 corners clearly.
 
 ### Step 4: Select Calibration Points
 
+**Purpose**: Selecting corner points establishes a perspective transformation matrix that maps image coordinates to physical touch zone coordinates. This is NOT for calculating lens distortion (already handled by Oculus library).
+
 For each camera, you'll select 4 corner points of the calibration board.
 
 **Left Camera Calibration:**
 
-1. Window shows left camera view with board visible
+1. Window shows left camera view with board visible (already undistorted by oculus library)
 2. Click on **bottom-left corner** of board → Point marked with "1"
 3. Click on **bottom-right corner** of board → Point marked with "2"
 4. Click on **top-right corner** of board → Point marked with "3"
@@ -346,15 +353,15 @@ zone_layout:
 python -m chunivision.calibration --config configs/zone_config.yaml
 ```
 
-### Stereo Calibration Refinement
+### Stereo Baseline Verification (Optional)
 
-For improved depth accuracy:
+For improved depth accuracy, you can verify the physical distance between cameras:
 
 ```bash
-python -m chunivision.calibration --stereo-refine
+python -m chunivision.calibration --verify-baseline
 ```
 
-Uses checkerboard pattern to refine stereo camera parameters.
+This helps ensure accurate 3D depth calculations. The Oculus cameras already have factory-calibrated lens distortion parameters, so traditional checkerboard calibration is not needed.
 
 ---
 

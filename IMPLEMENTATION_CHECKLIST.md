@@ -237,12 +237,14 @@ Use this checklist to track your implementation progress.
 
 ### Transform Calculator (`chunivision/calibration/transform_calculator.py`)
 
-- [ ] **TransformCalculator class**
-  - [ ] Perspective transform calculation
-  - [ ] Inverse transform
-  - [ ] Transform application to points
-  - [ ] Quality validation
-  - [ ] Unit tests
+- [x] **TransformCalculator class**
+  - [x] Perspective transform calculation
+  - [x] Inverse transform
+  - [x] Transform application to points
+  - [x] Quality validation
+  - [x] Reprojection error estimation
+  - [x] Transform decomposition
+  - [x] Unit tests (48 tests)
 
 ### Calibration Data (`chunivision/calibration/calibration_data.py`)
 

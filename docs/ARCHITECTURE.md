@@ -29,10 +29,11 @@ ChunIVision is a vision-based Chusan controller that uses dual infrared cameras 
 ```
 ┌──────────────┐
 │   Camera 1   │ (Left-Front, ~45° to origin)
-│  (Infrared)  │
+│  (Infrared)  │ (Oculus Rift CV1)
 └──────┬───────┘
        │
-       │ Raw Frames (distortion-corrected via oculus)
+       │ Frames (lens distortion auto-corrected by oculus library)
+       │ (Uses factory-calibrated distortion parameters)
        │
        ▼
 ┌─────────────────────────────────────────┐
@@ -129,9 +130,9 @@ ChunIVision is a vision-based Chusan controller that uses dual infrared cameras 
 
 **Responsibilities:**
 
-- Initialize cameras using oculus library
+- Initialize Oculus Rift CV1 cameras using oculus library
 - Capture frames from both cameras simultaneously
-- Apply distortion correction (via oculus)
+- Lens distortion is automatically corrected by oculus library (uses factory calibration)
 - Synchronize timestamps between cameras
 - Manage triple buffering for frame access
 
@@ -156,10 +157,10 @@ class CameraManager:
 
 **Responsibilities:**
 
-- Convert stereo image pair to depth map
+- Convert stereo image pair to depth map (frames already lens-distortion-corrected)
 - Generate 3D point cloud
-- Apply perspective transformation from calibration
-- Coordinate system transformation (camera → world)
+- Apply perspective transformation from user calibration (image → world coordinates)
+- Coordinate system transformation (camera space → world space)
 
 **Key Interfaces:**
 
@@ -305,12 +306,13 @@ class Calibrator:
 
 **Calibration Workflow:**
 
-1. Initialize cameras
-2. Prompt user to place reference board
-3. User selects 4 corners via GUI
-4. Calculate perspective transformation
-5. Verify transformation accuracy
-6. Save calibration data
+1. Initialize cameras (oculus library loads factory lens distortion parameters)
+2. Prompt user to place rectangular reference board on touch surface
+3. User selects 4 corners via GUI (from already-undistorted camera view)
+4. Calculate perspective transformation matrix (image coordinates → physical zone coordinates)
+5. User calibrates height thresholds for 6 air sensor levels
+6. Verify transformation accuracy
+7. Save calibration data (perspective transforms + height thresholds)
 
 #### Zone Selector (`calibration/zone_selector.py`)
 
@@ -338,8 +340,9 @@ class ZoneSelector:
 
 **Responsibilities:**
 
-- Compute perspective transformation matrix
-- Calculate inverse transformation for 2D→3D mapping
+- Compute perspective transformation matrix (image coords → physical zone coords)
+- This is NOT for lens distortion correction (already handled by Oculus cameras)
+- Calculate inverse transformation for world→image mapping
 - Validate transformation quality
 
 **Key Interfaces:**
@@ -368,10 +371,11 @@ class TransformCalculator:
 class CalibrationData:
     version: str
     timestamp: datetime
-    camera_left_transform: Transform
-    camera_right_transform: Transform
+    camera_left_transform: Transform  # Perspective transform for zone mapping
+    camera_right_transform: Transform  # Perspective transform for zone mapping
     zone_boundaries: ZoneBoundaries
-    height_thresholds: List[float]  # 6 thresholds
+    height_thresholds: List[float]  # 6 thresholds for air sensor levels
+    # Note: Lens distortion parameters come from Oculus factory calibration
 ```
 
 ### 3. Output Adapters

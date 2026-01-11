@@ -142,10 +142,12 @@ Designed for AI-assisted development:
 
 ### Calibration (4 modules)
 
-- `Calibrator`: Main calibration workflow
-- `ZoneSelector`: Interactive UI for point selection
-- `TransformCalculator`: Perspective transformation math
-- `CalibrationData`: Serialization and storage
+**Important Note**: Lens distortion correction is handled automatically by the Oculus camera library using factory-calibrated parameters. User calibration is ONLY for establishing perspective transformation (image coordinates → physical zone coordinates).
+
+- `Calibrator`: Interactive calibration workflow coordinator
+- `ZoneSelector`: Interactive UI for corner point selection
+- `TransformCalculator`: Perspective transformation calculations (image → zone mapping)
+- `CalibrationData`: Serialization and storage of calibration parameters
 
 ### Output Adapters (5 modules)
 

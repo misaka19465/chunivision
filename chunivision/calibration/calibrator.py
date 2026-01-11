@@ -1,18 +1,20 @@
 """
-Stereo camera calibration system for ChunIVision.
+Calibration workflow coordinator for ChunIVision.
 
-Provides tools for calibrating stereo camera setup, including
-intrinsic and extrinsic parameter estimation.
+Manages the interactive calibration process for mapping camera views
+to physical touch zones. Note that lens distortion correction is handled
+automatically by the Oculus camera library using factory calibration parameters.
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-import cv2
 import numpy as np
 
 from .calibration_data import CalibrationData
+from .transform_calculator import TransformCalculator
+from .zone_selector import ZoneSelector
 from ..utils.logger import Logger
 
 logger = Logger.get_logger(__name__)
@@ -26,283 +28,254 @@ class CalibrationError(Exception):
 
 class Calibrator:
     """
-    Stereo camera calibration manager.
+    Calibration workflow coordinator.
 
-    Handles the calibration process for dual cameras, computing:
-    - Individual camera intrinsics (focal length, principal point)
-    - Distortion coefficients
-    - Stereo extrinsics (rotation/translation between cameras)
-    - Rectification parameters for stereo matching
+    Orchestrates the interactive calibration process for ChunIVision:
+    1. User selects 4 corner points of calibration board for each camera
+    2. Computes perspective transformation matrices (image -> physical coordinates)
+    3. User calibrates height thresholds for 6 air sensor levels
+    4. Validates and saves calibration data
+
+    Note: Lens distortion correction is handled by Oculus camera library.
+    This calibration is ONLY for establishing the mapping between
+    camera image coordinates and physical touch zone coordinates.
 
     Typical usage:
-        calibrator = Calibrator(board_size=(9, 6), square_size=2.5)
-        for left_img, right_img in image_pairs:
-            calibrator.add_image_pair(left_img, right_img)
-        calibration_data = calibrator.calibrate()
+        calibrator = Calibrator(
+            board_physical_size=(44.0, 9.0),  # cm
+            zone_grid=(16, 2)  # columns, rows
+        )
+        calibration_data = calibrator.run_interactive_calibration(
+            left_camera, right_camera
+        )
     """
 
     def __init__(
         self,
-        board_size: Tuple[int, int] = (9, 6),
-        square_size: float = 2.5,
+        board_physical_size: Tuple[float, float] = (44.0, 9.0),
+        zone_grid: Tuple[int, int] = (16, 2),
         image_size: Tuple[int, int] = (640, 480),
     ):
         """
-        Initialize calibrator with checkerboard parameters.
+        Initialize calibrator.
 
         Args:
-            board_size: Number of inner corners (cols, rows) on checkerboard
-            square_size: Size of each square in cm
-            image_size: Image resolution (width, height)
+            board_physical_size: Physical size of calibration board (width, height) in cm
+            zone_grid: Number of touch zones (columns, rows)
+            image_size: Camera image resolution (width, height)
         """
-        self.board_size = board_size
-        self.square_size = square_size
+        self.board_physical_size = board_physical_size
+        self.zone_grid = zone_grid
         self.image_size = image_size
 
-        # Storage for calibration images
-        self._left_images: List[np.ndarray] = []
-        self._right_images: List[np.ndarray] = []
-        self._object_points: List[np.ndarray] = []
-        self._left_image_points: List[np.ndarray] = []
-        self._right_image_points: List[np.ndarray] = []
-
-        # Prepare object points (3D points of checkerboard corners)
-        self._object_pattern = np.zeros(
-            (board_size[0] * board_size[1], 3), dtype=np.float32
-        )
-        self._object_pattern[:, :2] = (
-            np.mgrid[0 : board_size[0], 0 : board_size[1]].T.reshape(-1, 2)
-            * square_size
+        # Define physical corner positions of the calibration board
+        # These correspond to the 4 corners in clockwise order from bottom-left
+        self._world_points = np.array(
+            [
+                [0, 0],  # Bottom-left
+                [board_physical_size[0], 0],  # Bottom-right
+                [board_physical_size[0], board_physical_size[1]],  # Top-right
+                [0, board_physical_size[1]],  # Top-left
+            ],
+            dtype=np.float32,
         )
 
         logger.info(
-            f"Calibrator initialized: board_size={board_size}, "
-            f"square_size={square_size}cm, image_size={image_size}"
+            f"Calibrator initialized: board_size={board_physical_size}cm, "
+            f"zone_grid={zone_grid}, image_size={image_size}"
         )
 
-    def add_image_pair(self, left_image: np.ndarray, right_image: np.ndarray) -> bool:
+    def run_interactive_calibration(
+        self,
+        left_camera: Any,
+        right_camera: Any,
+        zone_selector: Optional[ZoneSelector] = None,
+    ) -> CalibrationData:
         """
-        Add a stereo image pair for calibration.
+        Run interactive calibration workflow.
 
-        The checkerboard must be visible in both images.
+        Steps:
+        1. Prompt user to place calibration board
+        2. User selects 4 corner points for left camera
+        3. User selects 4 corner points for right camera
+        4. Calculate perspective transforms
+        5. User calibrates height thresholds
+        6. Return calibration data
 
         Args:
-            left_image: Left camera image (grayscale or BGR)
-            right_image: Right camera image (grayscale or BGR)
-
-        Returns:
-            True if checkerboard was found in both images
-        """
-        # Convert to grayscale if needed
-        if len(left_image.shape) == 3:
-            left_gray = cv2.cvtColor(left_image, cv2.COLOR_BGR2GRAY)
-        else:
-            left_gray = left_image
-
-        if len(right_image.shape) == 3:
-            right_gray = cv2.cvtColor(right_image, cv2.COLOR_BGR2GRAY)
-        else:
-            right_gray = right_image
-
-        # Find checkerboard corners
-        flags = (
-            cv2.CALIB_CB_ADAPTIVE_THRESH
-            | cv2.CALIB_CB_NORMALIZE_IMAGE
-            | cv2.CALIB_CB_FAST_CHECK
-        )
-
-        ret_left, corners_left = cv2.findChessboardCorners(
-            left_gray, self.board_size, flags
-        )
-        ret_right, corners_right = cv2.findChessboardCorners(
-            right_gray, self.board_size, flags
-        )
-
-        if not ret_left or not ret_right:
-            logger.debug("Checkerboard not found in one or both images")
-            return False
-
-        # Refine corner locations
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        corners_left = cv2.cornerSubPix(
-            left_gray, corners_left, (11, 11), (-1, -1), criteria
-        )
-        corners_right = cv2.cornerSubPix(
-            right_gray, corners_right, (11, 11), (-1, -1), criteria
-        )
-
-        # Store points
-        self._object_points.append(self._object_pattern.copy())
-        self._left_image_points.append(corners_left)
-        self._right_image_points.append(corners_right)
-        self._left_images.append(left_gray.copy())
-        self._right_images.append(right_gray.copy())
-
-        logger.info(f"Added calibration pair #{len(self._left_images)}")
-        return True
-
-    def get_num_pairs(self) -> int:
-        """Return number of valid image pairs collected."""
-        return len(self._left_images)
-
-    def calibrate(self) -> CalibrationData:
-        """
-        Run stereo calibration with collected image pairs.
-
-        Requires at least 10 image pairs for reliable calibration.
+            left_camera: Left camera instance (must provide get_frame())
+            right_camera: Right camera instance (must provide get_frame())
+            zone_selector: Optional ZoneSelector instance (creates default if None)
 
         Returns:
             CalibrationData with computed parameters
 
         Raises:
-            CalibrationError: If calibration fails or insufficient data
+            CalibrationError: If calibration fails
         """
-        if len(self._left_images) < 3:
-            raise CalibrationError(
-                f"Need at least 3 image pairs, have {len(self._left_images)}"
+        logger.info("Starting interactive calibration workflow")
+
+        if zone_selector is None:
+            zone_selector = ZoneSelector("ChunIVision Calibration")
+
+        try:
+            # Step 1: Get frames from cameras (already lens-distortion-corrected by Oculus lib)
+            logger.info("Capturing frames from cameras...")
+            left_frame = self._get_camera_frame(left_camera, "left")
+            right_frame = self._get_camera_frame(right_camera, "right")
+
+            # Step 2: Select points for left camera
+            logger.info("Please select 4 corners of calibration board (left camera)")
+            left_image_points = zone_selector.select_points(
+                left_frame,
+                num_points=4,
+                instructions="Select 4 corners: bottom-left, bottom-right, top-right, top-left (clockwise)",
             )
 
-        logger.info(
-            f"Starting stereo calibration with {len(self._left_images)} image pairs"
-        )
+            if left_image_points is None or len(left_image_points) != 4:
+                raise CalibrationError("Failed to select 4 points for left camera")
 
-        # Calibration flags
-        calib_flags = (
-            cv2.CALIB_FIX_K3 | cv2.CALIB_FIX_K4 | cv2.CALIB_FIX_K5 | cv2.CALIB_FIX_K6
-        )
+            left_image_points = np.array(left_image_points, dtype=np.float32)
 
-        # Calibrate individual cameras first
-        logger.info("Calibrating left camera...")
-        ret_left, mtx_left, dist_left, _, _ = cv2.calibrateCamera(
-            self._object_points,
-            self._left_image_points,
-            self.image_size,
-            None,
-            None,
-            flags=calib_flags,
-        )
+            # Step 3: Select points for right camera
+            logger.info("Please select 4 corners of calibration board (right camera)")
+            right_image_points = zone_selector.select_points(
+                right_frame,
+                num_points=4,
+                instructions="Select 4 corners: bottom-left, bottom-right, top-right, top-left (clockwise)",
+            )
 
-        logger.info("Calibrating right camera...")
-        ret_right, mtx_right, dist_right, _, _ = cv2.calibrateCamera(
-            self._object_points,
-            self._right_image_points,
-            self.image_size,
-            None,
-            None,
-            flags=calib_flags,
-        )
+            if right_image_points is None or len(right_image_points) != 4:
+                raise CalibrationError("Failed to select 4 points for right camera")
 
-        logger.info(f"Left camera RMS error: {ret_left:.4f}")
-        logger.info(f"Right camera RMS error: {ret_right:.4f}")
+            right_image_points = np.array(right_image_points, dtype=np.float32)
 
-        # Stereo calibration
-        logger.info("Performing stereo calibration...")
-        stereo_flags = (
-            cv2.CALIB_FIX_INTRINSIC  # Use intrinsics from individual calibration
-        )
+            # Step 4: Calculate perspective transforms
+            logger.info("Computing perspective transformations...")
+            left_transform = TransformCalculator.calculate_perspective_transform(
+                left_image_points, self._world_points
+            )
+            right_transform = TransformCalculator.calculate_perspective_transform(
+                right_image_points, self._world_points
+            )
 
-        (
-            ret_stereo,
-            mtx_left,
-            dist_left,
-            mtx_right,
-            dist_right,
-            R,
-            T,
-            E,
-            F,
-        ) = cv2.stereoCalibrate(
-            self._object_points,
-            self._left_image_points,
-            self._right_image_points,
-            mtx_left,
-            dist_left,
-            mtx_right,
-            dist_right,
-            self.image_size,
-            flags=stereo_flags,
-        )
+            # Step 5: Validate transform quality
+            left_quality, left_mean_err, left_max_err = (
+                TransformCalculator.validate_transform_quality(
+                    left_transform, left_image_points, self._world_points
+                )
+            )
+            right_quality, right_mean_err, right_max_err = (
+                TransformCalculator.validate_transform_quality(
+                    right_transform, right_image_points, self._world_points
+                )
+            )
 
-        logger.info(f"Stereo calibration RMS error: {ret_stereo:.4f}")
+            logger.info(
+                f"Left camera transform quality: {left_quality:.3f} "
+                f"(mean error: {left_mean_err:.2f}cm, max error: {left_max_err:.2f}cm)"
+            )
+            logger.info(
+                f"Right camera transform quality: {right_quality:.3f} "
+                f"(mean error: {right_mean_err:.2f}cm, max error: {right_max_err:.2f}cm)"
+            )
 
-        # Compute rectification transforms
-        logger.info("Computing stereo rectification...")
-        R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
-            mtx_left,
-            dist_left,
-            mtx_right,
-            dist_right,
-            self.image_size,
-            R,
-            T,
-            alpha=0,  # Only valid pixels
-        )
+            if left_quality < 0.85 or right_quality < 0.85:
+                logger.warning(
+                    "Transform quality is below recommended threshold (0.85). "
+                    "Consider recalibrating for better accuracy."
+                )
 
-        # Compute baseline from translation vector
-        baseline = np.linalg.norm(T)
+            # Step 6: Height calibration (would need UI implementation)
+            logger.info(
+                "Height calibration would be performed here (UI not implemented)"
+            )
+            height_thresholds = [0.0, 5.0, 10.0, 15.0, 20.0, 25.0]  # Placeholder
 
-        logger.info(f"Stereo baseline: {baseline:.2f} cm")
-        logger.info("Calibration complete")
+            # Step 7: Create calibration data
+            calibration_data = CalibrationData(
+                camera_left_transform=left_transform,
+                camera_right_transform=right_transform,
+                zone_boundaries=self._calculate_zone_boundaries(),
+                height_thresholds=height_thresholds,
+                stereo_baseline=20.0,  # Placeholder, should be measured
+                reference_board_size=self.board_physical_size,
+            )
 
-        return CalibrationData(
-            camera_left_matrix=mtx_left,
-            camera_right_matrix=mtx_right,
-            dist_coeffs_left=dist_left.flatten(),
-            dist_coeffs_right=dist_right.flatten(),
-            rotation_matrix=R,
-            translation_vector=T.flatten(),
-            rectify_left=R1,
-            rectify_right=R2,
-            projection_left=P1,
-            projection_right=P2,
-            disparity_to_depth=Q,
-            stereo_baseline=baseline,
-            image_size=self.image_size,
-        )
+            logger.info("Calibration completed successfully")
+            return calibration_data
 
-    def visualize_detection(
-        self, left_image: np.ndarray, right_image: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        except Exception as e:
+            logger.error(f"Calibration failed: {e}")
+            raise CalibrationError(f"Interactive calibration failed: {e}") from e
+        finally:
+            zone_selector.close()
+
+    def _get_camera_frame(self, camera: Any, camera_name: str) -> np.ndarray:
         """
-        Visualize checkerboard detection in image pair.
+        Get a frame from camera.
 
         Args:
-            left_image: Left camera image
-            right_image: Right camera image
+            camera: Camera instance
+            camera_name: Camera identifier for logging
 
         Returns:
-            Tuple of images with detected corners drawn
+            Frame as numpy array
+
+        Raises:
+            CalibrationError: If frame capture fails
         """
-        # Convert to color for drawing
-        if len(left_image.shape) == 2:
-            left_vis = cv2.cvtColor(left_image, cv2.COLOR_GRAY2BGR)
-        else:
-            left_vis = left_image.copy()
+        try:
+            if hasattr(camera, "get_frame"):
+                frame = camera.get_frame()
+            elif hasattr(camera, "read"):
+                ret, frame = camera.read()
+                if not ret:
+                    raise CalibrationError(f"Failed to read from {camera_name} camera")
+            else:
+                raise CalibrationError(
+                    f"{camera_name} camera does not have get_frame() or read() method"
+                )
 
-        if len(right_image.shape) == 2:
-            right_vis = cv2.cvtColor(right_image, cv2.COLOR_GRAY2BGR)
-        else:
-            right_vis = right_image.copy()
+            if frame is None:
+                raise CalibrationError(f"Got None frame from {camera_name} camera")
 
-        # Detect corners
-        ret_left, corners_left = cv2.findChessboardCorners(
-            left_image, self.board_size, None
-        )
-        ret_right, corners_right = cv2.findChessboardCorners(
-            right_image, self.board_size, None
-        )
+            return frame
 
-        # Draw corners
-        cv2.drawChessboardCorners(left_vis, self.board_size, corners_left, ret_left)
-        cv2.drawChessboardCorners(right_vis, self.board_size, corners_right, ret_right)
+        except Exception as e:
+            raise CalibrationError(
+                f"Failed to get frame from {camera_name} camera: {e}"
+            ) from e
 
-        return left_vis, right_vis
+    def _calculate_zone_boundaries(self) -> Dict[str, Any]:
+        """
+        Calculate zone boundaries based on grid configuration.
 
-    def clear(self) -> None:
-        """Clear all collected calibration data."""
-        self._left_images.clear()
-        self._right_images.clear()
-        self._object_points.clear()
-        self._left_image_points.clear()
-        self._right_image_points.clear()
-        logger.info("Calibration data cleared")
+        Returns:
+            Dictionary containing zone boundary information
+        """
+        cols, rows = self.zone_grid
+        zone_width = self.board_physical_size[0] / cols
+        zone_height = self.board_physical_size[1] / rows
+
+        zones = []
+        for row in range(rows):
+            for col in range(cols):
+                x_min = col * zone_width
+                y_min = row * zone_height
+                x_max = (col + 1) * zone_width
+                y_max = (row + 1) * zone_height
+
+                zones.append(
+                    {
+                        "id": row * cols + col,
+                        "bounds": [x_min, y_min, x_max, y_max],
+                        "center": [(x_min + x_max) / 2, (y_min + y_max) / 2],
+                    }
+                )
+
+        return {
+            "grid": self.zone_grid,
+            "zone_size": [zone_width, zone_height],
+            "zones": zones,
+        }
