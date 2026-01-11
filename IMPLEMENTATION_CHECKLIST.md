@@ -166,13 +166,19 @@ Use this checklist to track your implementation progress.
 
 ### Hand Detection (`chunivision/vision/hand_detector.py`)
 
-- [ ] **HandDetector class**
-  - [ ] Point cloud clustering
-  - [ ] Hand region filtering
-  - [ ] Tracking across frames
-  - [ ] Velocity calculation
-  - [ ] Confidence scoring
-  - [ ] Unit tests
+- [x] **HandDetector class**
+  - [x] Point cloud clustering
+  - [x] Hand region filtering
+  - [x] Tracking across frames
+  - [x] Velocity calculation
+  - [x] Confidence scoring
+  - [x] Unit tests (43 tests)
+
+- [x] **Supporting Classes**
+  - [x] Hand dataclass with position, velocity, confidence
+  - [x] HandDetectorConfig with validation
+  - [x] KalmanTracker for position/velocity estimation
+  - [x] TrackedHand for internal tracking state
 
 ### Touch Detection (`chunivision/vision/touch_detector.py`)
 
