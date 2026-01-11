@@ -121,6 +121,7 @@ def invalid_config():
     config.left_camera_angle = 45.0
     config.right_camera_angle = 45.0
     return config
+    return config
 
 
 class TestCameraManagerInit:
@@ -150,8 +151,8 @@ class TestCameraManagerInitialize:
     def test_initialize_success(self, mock_camera_class, valid_config):
         """Test successful camera initialization."""
         # Setup mocks
-        mock_camera_class.side_effect = (
-            lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
         )
 
         manager = CameraManager(valid_config)
@@ -167,10 +168,10 @@ class TestCameraManagerInitialize:
         """Test initialization when left camera fails."""
 
         # Setup mocks - left camera fails
-        def camera_factory(serial_number, **kwargs):
-            if serial_number == "MOCK_LEFT_SERIAL":
-                return MockOculusCamera(serial_number, fail_init=True)
-            return MockOculusCamera(serial_number)
+        def camera_factory(device_index, **kwargs):
+            if device_index == 0:
+                return MockOculusCamera(device_index, fail_init=True)
+            return MockOculusCamera(device_index)
 
         mock_camera_class.side_effect = camera_factory
 
@@ -187,10 +188,10 @@ class TestCameraManagerInitialize:
         """Test initialization when right camera fails."""
 
         # Setup mocks - right camera fails
-        def camera_factory(serial_number, **kwargs):
-            if serial_number == "MOCK_RIGHT_SERIAL":
-                return MockOculusCamera(serial_number, fail_init=True)
-            return MockOculusCamera(serial_number)
+        def camera_factory(device_index, **kwargs):
+            if device_index == 1:
+                return MockOculusCamera(device_index, fail_init=True)
+            return MockOculusCamera(device_index)
 
         mock_camera_class.side_effect = camera_factory
 
@@ -210,7 +211,9 @@ class TestCameraManagerStreaming:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_start_streaming_success(self, mock_camera_class, valid_config):
         """Test starting streaming successfully."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -233,7 +236,9 @@ class TestCameraManagerStreaming:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_stop_streaming(self, mock_camera_class, valid_config):
         """Test stopping streaming."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -251,7 +256,9 @@ class TestCameraManagerStreaming:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_stop_streaming_when_not_streaming(self, mock_camera_class, valid_config):
         """Test stopping streaming when not streaming."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -271,7 +278,9 @@ class TestCameraManagerFrameCapture:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_get_frame_pair_success(self, mock_camera_class, valid_config):
         """Test getting synchronized frame pair."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -299,7 +308,9 @@ class TestCameraManagerFrameCapture:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_get_frame_pair_not_streaming(self, mock_camera_class, valid_config):
         """Test getting frame pair when not streaming."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -314,7 +325,9 @@ class TestCameraManagerFrameCapture:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_get_frame_pair_no_frames_yet(self, mock_camera_class, valid_config):
         """Test getting frame pair before frames arrive."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -338,7 +351,9 @@ class TestCameraManagerInfo:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_get_camera_info(self, mock_camera_class, valid_config):
         """Test getting camera information."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -350,8 +365,8 @@ class TestCameraManagerInfo:
         assert info["streaming"] is False
         assert "left_camera" in info
         assert "right_camera" in info
-        assert info["left_camera"]["serial"] == "MOCK_LEFT_SERIAL"
-        assert info["right_camera"]["serial"] == "MOCK_RIGHT_SERIAL"
+        assert info["left_camera"]["index"] == 0
+        assert info["right_camera"]["index"] == 1
         assert info["left_camera"]["resolution"] == (1280, 960)
         assert info["right_camera"]["resolution"] == (1280, 960)
 
@@ -361,7 +376,9 @@ class TestCameraManagerInfo:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_is_ready(self, mock_camera_class, valid_config):
         """Test is_ready method."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
 
@@ -378,7 +395,9 @@ class TestCameraManagerInfo:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_get_fps(self, mock_camera_class, valid_config):
         """Test FPS tracking."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -406,7 +425,9 @@ class TestCameraManagerResourceManagement:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_release(self, mock_camera_class, valid_config):
         """Test releasing camera resources."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -422,7 +443,9 @@ class TestCameraManagerResourceManagement:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_release_while_streaming(self, mock_camera_class, valid_config):
         """Test releasing resources while streaming."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         manager = CameraManager(valid_config)
         manager.initialize()
@@ -439,7 +462,9 @@ class TestCameraManagerResourceManagement:
     @patch("chunivision.vision.camera_manager.OculusRiftCV1Camera")
     def test_context_manager(self, mock_camera_class, valid_config):
         """Test context manager protocol."""
-        mock_camera_class.side_effect = lambda serial_number, **kwargs: MockOculusCamera(serial_number)
+        mock_camera_class.side_effect = lambda device_index, **kwargs: MockOculusCamera(
+            device_index
+        )
 
         with CameraManager(valid_config) as manager:
             assert manager.is_ready()

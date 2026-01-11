@@ -25,19 +25,19 @@ class Point2D:
         """Convert to numpy array."""
         return np.array([self.x, self.y])
 
-    def distance_to(self, other: 'Point2D') -> float:
+    def distance_to(self, other: "Point2D") -> float:
         """Calculate Euclidean distance to another point."""
         return np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
-    def __add__(self, other: 'Point2D') -> 'Point2D':
+    def __add__(self, other: "Point2D") -> "Point2D":
         """Add two points."""
         return Point2D(self.x + other.x, self.y + other.y)
 
-    def __sub__(self, other: 'Point2D') -> 'Point2D':
+    def __sub__(self, other: "Point2D") -> "Point2D":
         """Subtract two points."""
         return Point2D(self.x - other.x, self.y - other.y)
 
-    def __mul__(self, scalar: float) -> 'Point2D':
+    def __mul__(self, scalar: float) -> "Point2D":
         """Multiply point by scalar."""
         return Point2D(self.x * scalar, self.y * scalar)
 
@@ -57,27 +57,25 @@ class Point3D:
         """Convert to numpy array."""
         return np.array([self.x, self.y, self.z])
 
-    def distance_to(self, other: 'Point3D') -> float:
+    def distance_to(self, other: "Point3D") -> float:
         """Calculate Euclidean distance to another point."""
         return np.sqrt(
-            (self.x - other.x) ** 2 +
-            (self.y - other.y) ** 2 +
-            (self.z - other.z) ** 2
+            (self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2
         )
 
     def to_2d(self) -> Point2D:
         """Project to 2D by dropping z coordinate."""
         return Point2D(self.x, self.y)
 
-    def __add__(self, other: 'Point3D') -> 'Point3D':
+    def __add__(self, other: "Point3D") -> "Point3D":
         """Add two points."""
         return Point3D(self.x + other.x, self.y + other.y, self.z + other.z)
 
-    def __sub__(self, other: 'Point3D') -> 'Point3D':
+    def __sub__(self, other: "Point3D") -> "Point3D":
         """Subtract two points."""
         return Point3D(self.x - other.x, self.y - other.y, self.z - other.z)
 
-    def __mul__(self, scalar: float) -> 'Point3D':
+    def __mul__(self, scalar: float) -> "Point3D":
         """Multiply point by scalar."""
         return Point3D(self.x * scalar, self.y * scalar, self.z * scalar)
 
@@ -85,8 +83,9 @@ class Point3D:
         return f"Point3D(x={self.x:.2f}, y={self.y:.2f}, z={self.z:.2f})"
 
 
-def point_in_polygon(point: Union[Point2D, np.ndarray],
-                     polygon: Union[List[Point2D], np.ndarray]) -> bool:
+def point_in_polygon(
+    point: Union[Point2D, np.ndarray], polygon: Union[List[Point2D], np.ndarray]
+) -> bool:
     """
     Test if a point is inside a polygon using the ray casting algorithm.
 
@@ -127,8 +126,9 @@ def point_in_polygon(point: Union[Point2D, np.ndarray],
     return inside
 
 
-def distance_2d(p1: Union[Point2D, np.ndarray],
-                p2: Union[Point2D, np.ndarray]) -> float:
+def distance_2d(
+    p1: Union[Point2D, np.ndarray], p2: Union[Point2D, np.ndarray]
+) -> float:
     """
     Calculate Euclidean distance between two 2D points.
 
@@ -149,8 +149,9 @@ def distance_2d(p1: Union[Point2D, np.ndarray],
     return float(np.linalg.norm(a1 - a2))
 
 
-def distance_3d(p1: Union[Point3D, np.ndarray],
-                p2: Union[Point3D, np.ndarray]) -> float:
+def distance_3d(
+    p1: Union[Point3D, np.ndarray], p2: Union[Point3D, np.ndarray]
+) -> float:
     """
     Calculate Euclidean distance between two 3D points.
 
@@ -174,7 +175,7 @@ def distance_3d(p1: Union[Point3D, np.ndarray],
 def transform_camera_to_world(
     point_camera: np.ndarray,
     rotation_matrix: np.ndarray,
-    translation_vector: np.ndarray
+    translation_vector: np.ndarray,
 ) -> np.ndarray:
     """
     Transform point from camera coordinates to world coordinates.
@@ -191,9 +192,7 @@ def transform_camera_to_world(
 
 
 def transform_world_to_camera(
-    point_world: np.ndarray,
-    rotation_matrix: np.ndarray,
-    translation_vector: np.ndarray
+    point_world: np.ndarray, rotation_matrix: np.ndarray, translation_vector: np.ndarray
 ) -> np.ndarray:
     """
     Transform point from world coordinates to camera coordinates.
@@ -209,10 +208,7 @@ def transform_world_to_camera(
     return rotation_matrix.T @ (point_world - translation_vector)
 
 
-def project_3d_to_2d(
-    point_3d: np.ndarray,
-    camera_matrix: np.ndarray
-) -> np.ndarray:
+def project_3d_to_2d(point_3d: np.ndarray, camera_matrix: np.ndarray) -> np.ndarray:
     """
     Project 3D point to 2D image plane using camera intrinsics.
 
@@ -240,9 +236,7 @@ def project_3d_to_2d(
 
 
 def backproject_2d_to_3d(
-    point_2d: np.ndarray,
-    depth: float,
-    camera_matrix: np.ndarray
+    point_2d: np.ndarray, depth: float, camera_matrix: np.ndarray
 ) -> np.ndarray:
     """
     Back-project 2D pixel to 3D point given depth.
@@ -271,9 +265,7 @@ def backproject_2d_to_3d(
 
 
 def calculate_rectangle_corners(
-    center: Point2D,
-    width: float,
-    height: float
+    center: Point2D, width: float, height: float
 ) -> List[Point2D]:
     """
     Calculate corners of a rectangle given center and dimensions.
@@ -298,9 +290,7 @@ def calculate_rectangle_corners(
 
 
 def interpolate_points(
-    p1: Union[Point2D, Point3D],
-    p2: Union[Point2D, Point3D],
-    t: float
+    p1: Union[Point2D, Point3D], p2: Union[Point2D, Point3D], t: float
 ) -> Union[Point2D, Point3D]:
     """
     Linear interpolation between two points.
@@ -314,15 +304,10 @@ def interpolate_points(
         Interpolated point
     """
     if isinstance(p1, Point2D) and isinstance(p2, Point2D):
-        return Point2D(
-            p1.x + (p2.x - p1.x) * t,
-            p1.y + (p2.y - p1.y) * t
-        )
+        return Point2D(p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t)
     elif isinstance(p1, Point3D) and isinstance(p2, Point3D):
         return Point3D(
-            p1.x + (p2.x - p1.x) * t,
-            p1.y + (p2.y - p1.y) * t,
-            p1.z + (p2.z - p1.z) * t
+            p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t, p1.z + (p2.z - p1.z) * t
         )
     else:
         raise TypeError("Both points must be of the same type (Point2D or Point3D)")

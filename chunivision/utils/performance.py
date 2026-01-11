@@ -28,6 +28,7 @@ class PerformanceStats:
         memory_usage_mb: Current memory usage in megabytes
         dropped_frames: Number of dropped frames
     """
+
     fps: float = 0.0
     avg_latency_ms: float = 0.0
     stage_latencies: Dict[str, float] = field(default_factory=dict)
@@ -36,7 +37,9 @@ class PerformanceStats:
 
     def __str__(self) -> str:
         """String representation of performance stats."""
-        stage_str = ", ".join([f"{k}: {v:.2f}ms" for k, v in self.stage_latencies.items()])
+        stage_str = ", ".join(
+            [f"{k}: {v:.2f}ms" for k, v in self.stage_latencies.items()]
+        )
         return (
             f"FPS: {self.fps:.1f}, "
             f"Latency: {self.avg_latency_ms:.2f}ms, "
@@ -61,7 +64,7 @@ class PerformanceMonitor:
         self,
         fps_window: int = 60,
         latency_window: int = 100,
-        enable_memory_tracking: bool = True
+        enable_memory_tracking: bool = True,
     ):
         """
         Initialize performance monitor.
@@ -211,7 +214,7 @@ class PerformanceMonitor:
             avg_latency_ms=self.get_average_latency(),
             stage_latencies=self.get_stage_latencies(),
             memory_usage_mb=self.get_memory_usage(),
-            dropped_frames=self._dropped_frames
+            dropped_frames=self._dropped_frames,
         )
 
     def get_detailed_stats(self) -> Dict:
@@ -224,15 +227,15 @@ class PerformanceMonitor:
         uptime = time.time() - self._start_time
 
         return {
-            'fps': self.get_fps(),
-            'avg_latency_ms': self.get_average_latency(),
-            'stage_latencies': self.get_stage_latencies(),
-            'memory_mb': self.get_memory_usage(),
-            'dropped_frames': self._dropped_frames,
-            'total_frames': self._total_frames,
-            'uptime_seconds': uptime,
-            'avg_fps': self._total_frames / uptime if uptime > 0 else 0.0,
-            'drop_rate': self._dropped_frames / max(1, self._total_frames)
+            "fps": self.get_fps(),
+            "avg_latency_ms": self.get_average_latency(),
+            "stage_latencies": self.get_stage_latencies(),
+            "memory_mb": self.get_memory_usage(),
+            "dropped_frames": self._dropped_frames,
+            "total_frames": self._total_frames,
+            "uptime_seconds": uptime,
+            "avg_fps": self._total_frames / uptime if uptime > 0 else 0.0,
+            "drop_rate": self._dropped_frames / max(1, self._total_frames),
         }
 
     def reset(self) -> None:
@@ -271,7 +274,7 @@ class PerformanceMonitor:
         """
         stats = self.get_detailed_stats()
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write("ChunIVision Performance Report\n")
             f.write("=" * 70 + "\n\n")
 
@@ -285,9 +288,9 @@ class PerformanceMonitor:
             f.write(f"Average Latency: {stats['avg_latency_ms']:.2f} ms\n")
             f.write(f"Memory Usage: {stats['memory_mb']:.1f} MB\n\n")
 
-            if stats['stage_latencies']:
+            if stats["stage_latencies"]:
                 f.write("Stage Latencies:\n")
-                for stage, latency in stats['stage_latencies'].items():
+                for stage, latency in stats["stage_latencies"].items():
                     f.write(f"  {stage}: {latency:.2f} ms\n")
 
     def __str__(self) -> str:

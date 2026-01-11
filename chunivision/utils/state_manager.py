@@ -25,6 +25,7 @@ class TouchState:
                Zone numbering: 1-32 (zone 1 = bottom-right, zone 32 = top-left)
         timestamp: Time when state was captured (seconds since epoch)
     """
+
     zones: np.ndarray  # shape (32,) dtype bool
     timestamp: float = 0.0
 
@@ -46,6 +47,7 @@ class HeightState:
                 0 = no detection, 1-6 = height levels from bottom to top
         timestamp: Time when state was captured (seconds since epoch)
     """
+
     levels: np.ndarray  # shape (6,) dtype int
     timestamp: float = 0.0
 
@@ -68,11 +70,7 @@ class StateManager:
     - State history buffer
     """
 
-    def __init__(
-        self,
-        debounce_frames: int = 2,
-        history_size: int = 100
-    ):
+    def __init__(self, debounce_frames: int = 2, history_size: int = 100):
         """
         Initialize state manager.
 
@@ -92,8 +90,12 @@ class StateManager:
         self._height_buffer: deque = deque(maxlen=debounce_frames)
 
         # State change flags
-        self._touch_changes = np.zeros(32, dtype=int)  # -1=released, 0=no change, 1=pressed
-        self._height_changes = np.zeros(6, dtype=int)  # -1=decreased, 0=no change, 1=increased
+        self._touch_changes = np.zeros(
+            32, dtype=int
+        )  # -1=released, 0=no change, 1=pressed
+        self._height_changes = np.zeros(
+            6, dtype=int
+        )  # -1=decreased, 0=no change, 1=increased
 
         # History buffers
         self._touch_history: deque = deque(maxlen=history_size)
@@ -103,11 +105,7 @@ class StateManager:
         self._total_updates = 0
         self._total_changes = 0
 
-    def update_state(
-        self,
-        touch_state: TouchState,
-        height_state: HeightState
-    ) -> bool:
+    def update_state(self, touch_state: TouchState, height_state: HeightState) -> bool:
         """
         Update current state and detect changes.
 
@@ -143,12 +141,10 @@ class StateManager:
 
             # Update current state
             self._current_touch = TouchState(
-                zones=touch_debounced,
-                timestamp=time.time()
+                zones=touch_debounced, timestamp=time.time()
             )
             self._current_height = HeightState(
-                levels=height_debounced,
-                timestamp=time.time()
+                levels=height_debounced, timestamp=time.time()
             )
 
             # Add to history
@@ -253,10 +249,7 @@ class StateManager:
         """
         return np.where(self._current_touch.zones)[0] + 1  # Convert to 1-based
 
-    def get_history(
-        self,
-        num_frames: Optional[int] = None
-    ) -> Tuple[list, list]:
+    def get_history(self, num_frames: Optional[int] = None) -> Tuple[list, list]:
         """
         Get state history.
 
@@ -271,7 +264,7 @@ class StateManager:
 
         return (
             list(self._touch_history)[-num_frames:],
-            list(self._height_history)[-num_frames:]
+            list(self._height_history)[-num_frames:],
         )
 
     def reset(self) -> None:
@@ -295,10 +288,10 @@ class StateManager:
             Dictionary with statistics
         """
         return {
-            'total_updates': self._total_updates,
-            'total_changes': self._total_changes,
-            'change_rate': self._total_changes / max(1, self._total_updates),
-            'debounce_frames': self.debounce_frames,
-            'history_size': len(self._touch_history),
-            'currently_pressed_zones': len(self.get_pressed_zones())
+            "total_updates": self._total_updates,
+            "total_changes": self._total_changes,
+            "change_rate": self._total_changes / max(1, self._total_updates),
+            "debounce_frames": self.debounce_frames,
+            "history_size": len(self._touch_history),
+            "currently_pressed_zones": len(self.get_pressed_zones()),
         }

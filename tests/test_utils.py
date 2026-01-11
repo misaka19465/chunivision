@@ -19,7 +19,7 @@ from chunivision.utils import (
     TouchState,
     HeightState,
     PerformanceMonitor,
-    PerformanceStats
+    PerformanceStats,
 )
 
 
@@ -125,7 +125,7 @@ class TestGeometry:
             Point2D(0.0, 0.0),
             Point2D(2.0, 0.0),
             Point2D(2.0, 2.0),
-            Point2D(0.0, 2.0)
+            Point2D(0.0, 2.0),
         ]
 
         # Point inside

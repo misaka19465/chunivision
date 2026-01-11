@@ -35,7 +35,7 @@ class Logger:
         log_format: Optional[str] = None,
         enable_rotation: bool = True,
         max_bytes: int = 10485760,  # 10MB
-        backup_count: int = 5
+        backup_count: int = 5,
     ) -> None:
         """
         Configure the logging system.
@@ -78,9 +78,7 @@ class Logger:
 
             if enable_rotation:
                 file_handler = logging.handlers.RotatingFileHandler(
-                    Logger._log_file,
-                    maxBytes=max_bytes,
-                    backupCount=backup_count
+                    Logger._log_file, maxBytes=max_bytes, backupCount=backup_count
                 )
             else:
                 file_handler = logging.FileHandler(Logger._log_file)

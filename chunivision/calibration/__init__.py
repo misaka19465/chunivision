@@ -3,4 +3,4 @@
 from .calibrator import Calibrator
 from .calibration_data import CalibrationData
 
-__all__ = ['Calibrator', 'CalibrationData']
+__all__ = ["Calibrator", "CalibrationData"]

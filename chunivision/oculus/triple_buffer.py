@@ -1,4 +1,5 @@
 """Small triple buffer helper used by the viewer and camera callbacks."""
+
 from __future__ import annotations
 
 import threading
