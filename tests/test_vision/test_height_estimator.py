@@ -837,9 +837,9 @@ class TestHeightEstimatorIntegration:
                 f"got {state.get_active_count()}"
             )
 
-    def test_chunithm_thresholds(self):
-        """Test with actual Chunithm air sensor thresholds."""
-        estimator = HeightEstimator()  # Uses default Chunithm thresholds
+    def test_chusan_thresholds(self):
+        """Test with actual Chusan air sensor thresholds."""
+        estimator = HeightEstimator()  # Uses default Chusan thresholds
 
         thresholds = estimator.get_all_thresholds()
         assert thresholds == [17.9, 21.3, 24.7, 28.1, 31.5, 34.9]

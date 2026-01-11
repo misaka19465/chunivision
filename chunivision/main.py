@@ -21,7 +21,7 @@ def main(args: Optional[list] = None) -> int:
         Exit code (0 for success, non-zero for error)
     """
     parser = argparse.ArgumentParser(
-        description="ChunIVision - Vision-based Chunithm Controller"
+        description="ChunIVision - Vision-based Chusan Controller"
     )
 
     parser.add_argument(

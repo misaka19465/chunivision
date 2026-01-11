@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**ChunIVision** is a vision-based controller for the Chunithm rhythm game that replaces traditional touch sensors and infrared height detection with a dual-camera computer vision system.
+**ChunIVision** is a vision-based controller for the Chusan that replaces traditional touch sensors and infrared height detection with a dual-camera computer vision system.
 
 ### Key Innovation
 
@@ -367,7 +367,7 @@ When asked to implement ChunIVision components:
 
 ## Conclusion
 
-This framework provides everything needed to build a production-ready vision-based Chunithm controller:
+This framework provides everything needed to build a production-ready vision-based Chusan controller:
 
 ✅ Complete architectural design
 ✅ Detailed module specifications

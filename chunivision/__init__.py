@@ -1,5 +1,5 @@
 """
-ChunIVision - Vision-based Chunithm Controller
+ChunIVision - Vision-based Chusan Controller
 
 A modular, extensible system for vision-based touch detection and height
 tracking using dual infrared cameras.
