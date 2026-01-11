@@ -248,32 +248,33 @@ Use this checklist to track your implementation progress.
 
 ### Calibration Data (`chunivision/calibration/calibration_data.py`)
 
-- [ ] **CalibrationData class**
-  - [ ] Data structure definition
-  - [ ] YAML serialization
-  - [ ] YAML deserialization
-  - [ ] Data validation
-  - [ ] Unit tests
+- [x] **CalibrationData class**
+  - [x] Data structure definition
+  - [x] YAML serialization
+  - [x] YAML deserialization
+  - [x] Data validation
+  - [x] Unit tests (29 tests)
 
 ### Calibrator (`chunivision/calibration/calibrator.py`)
 
-- [ ] **Calibrator class**
-  - [ ] Calibration workflow
-  - [ ] User prompts and instructions
-  - [ ] Point selection orchestration
-  - [ ] Transform calculation
-  - [ ] Height threshold calibration
-  - [ ] Quality verification
-  - [ ] Save/load functionality
-  - [ ] Integration tests
+- [x] **Calibrator class**
+  - [x] Calibration workflow
+  - [x] User prompts and instructions
+  - [x] Point selection orchestration
+  - [x] Transform calculation
+  - [x] Height threshold calibration
+  - [x] Quality verification
+  - [x] Save/load functionality
+  - [x] Unit tests (30 tests)
+  - [ ] Integration tests (requires hardware)
 
 ### Phase 3 Completion Criteria
 
-- [ ] User can complete calibration process
-- [ ] Calibration data saved and loaded
-- [ ] Transform accuracy verified
-- [ ] Calibration quality metrics working
-- [ ] All Phase 3 tests passing
+- [x] User can complete calibration process
+- [x] Calibration data saved and loaded
+- [x] Transform accuracy verified
+- [x] Calibration quality metrics working
+- [x] All Phase 3 tests passing
 
 ---
 

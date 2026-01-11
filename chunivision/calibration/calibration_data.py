@@ -2,18 +2,29 @@
 Calibration data structures for ChunIVision.
 
 Stores and manages stereo camera calibration parameters including
-intrinsic matrices, extrinsic parameters, and transformation data.
+perspective transformation matrices and zone/height configuration.
+
+Note: Lens distortion correction is handled automatically by the Oculus
+camera library using factory calibration parameters. This module handles
+only the user-calibrated perspective transforms and zone mappings.
 """
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import yaml
+
+
+class CalibrationDataError(Exception):
+    """Raised when calibration data is invalid or corrupted."""
+
+    pass
 
 
 @dataclass
@@ -21,19 +32,22 @@ class CalibrationData:
     """
     Complete calibration data for the stereo vision system.
 
-    Contains all parameters necessary for stereo reconstruction:
-    - Camera intrinsic matrices (focal length, principal point)
-    - Camera extrinsic matrices (rotation, translation)
-    - Stereo rectification parameters
-    - Disparity-to-depth mapping (Q matrix)
+    This class stores all calibration parameters needed for ChunIVision:
+    - Perspective transformation matrices (image -> physical coordinates)
+    - Zone boundary information
+    - Height detection thresholds
+    - Stereo camera parameters
+
+    Note: Lens distortion is NOT stored here - it's handled by the Oculus
+    camera library using factory-calibrated parameters.
 
     Attributes:
         version: Calibration format version for compatibility
         timestamp: When calibration was performed
         camera_left_matrix: 3x3 intrinsic matrix for left camera
         camera_right_matrix: 3x3 intrinsic matrix for right camera
-        dist_coeffs_left: Distortion coefficients for left camera
-        dist_coeffs_right: Distortion coefficients for right camera
+        dist_coeffs_left: Distortion coefficients for left camera (from factory)
+        dist_coeffs_right: Distortion coefficients for right camera (from factory)
         rotation_matrix: 3x3 rotation matrix from left to right camera
         translation_vector: 3x1 translation vector from left to right camera
         rectify_left: 3x3 rectification transform for left camera
@@ -43,11 +57,12 @@ class CalibrationData:
         disparity_to_depth: 4x4 Q matrix for disparity-to-depth mapping
         stereo_baseline: Distance between camera centers in cm
         image_size: Image dimensions as (width, height)
-        zone_boundaries: Physical boundaries of 32 touch zones
+        zone_boundaries: Physical boundaries of 32 touch zones (dict or array)
         height_thresholds: Z-coordinate thresholds for 6 air sensor levels in cm
         reference_board_size: Size of calibration board (width, height) in cm
-        camera_left_transform: Perspective transform for left camera (image to world)
-        camera_right_transform: Perspective transform for right camera (image to world)
+        camera_left_transform: 3x3 perspective transform for left camera (image to world)
+        camera_right_transform: 3x3 perspective transform for right camera (image to world)
+        calibration_quality: Quality metrics from calibration process
     """
 
     version: str = "1.0"
@@ -123,6 +138,26 @@ class CalibrationData:
         default_factory=lambda: np.eye(3, dtype=np.float64)
     )
 
+    # Calibration quality metrics
+    calibration_quality: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "left_quality_score": 0.0,
+            "right_quality_score": 0.0,
+            "left_mean_error": 0.0,
+            "right_mean_error": 0.0,
+            "left_max_error": 0.0,
+            "right_max_error": 0.0,
+        }
+    )
+
+    # Selected calibration points (for reference/debugging)
+    left_calibration_points: np.ndarray = field(
+        default_factory=lambda: np.zeros((4, 2), dtype=np.float64)
+    )
+    right_calibration_points: np.ndarray = field(
+        default_factory=lambda: np.zeros((4, 2), dtype=np.float64)
+    )
+
     def __post_init__(self) -> None:
         """Ensure all arrays are numpy arrays with correct dtype."""
         array_fields = [
@@ -137,10 +172,11 @@ class CalibrationData:
             "projection_left",
             "projection_right",
             "disparity_to_depth",
-            "zone_boundaries",
             "height_thresholds",
             "camera_left_transform",
             "camera_right_transform",
+            "left_calibration_points",
+            "right_calibration_points",
         ]
 
         for field_name in array_fields:
@@ -149,7 +185,19 @@ class CalibrationData:
                 if isinstance(value, (list, tuple)):
                     setattr(self, field_name, np.array(value, dtype=np.float64))
                 else:
-                    raise TypeError(f"{field_name} must be array-like")
+                    raise TypeError(
+                        f"{field_name} must be array-like, got {type(value)}"
+                    )
+
+        # Handle zone_boundaries specially - can be dict or array
+        if isinstance(self.zone_boundaries, dict):
+            # Keep as dict
+            pass
+        elif isinstance(self.zone_boundaries, np.ndarray):
+            # Keep as array
+            pass
+        elif isinstance(self.zone_boundaries, (list, tuple)):
+            self.zone_boundaries = np.array(self.zone_boundaries, dtype=np.float64)
 
     def validate(self) -> List[str]:
         """
@@ -208,17 +256,46 @@ class CalibrationData:
             ):
                 errors.append("height_thresholds must be in ascending order")
 
-        # Check zone boundaries
-        if self.zone_boundaries.shape != (32, 4, 2):
-            errors.append(
-                f"zone_boundaries must be (32, 4, 2), got {self.zone_boundaries.shape}"
-            )
+        # Check zone boundaries (flexible - can be dict or array)
+        if isinstance(self.zone_boundaries, np.ndarray):
+            if self.zone_boundaries.shape != (32, 4, 2):
+                # Allow empty zone boundaries for initial calibration
+                if not np.allclose(self.zone_boundaries, 0):
+                    errors.append(
+                        f"zone_boundaries array must be (32, 4, 2), got {self.zone_boundaries.shape}"
+                    )
+        elif isinstance(self.zone_boundaries, dict):
+            # Validate dict structure
+            required_keys = ["grid", "zone_size"]
+            for key in required_keys:
+                if key not in self.zone_boundaries:
+                    errors.append(f"zone_boundaries dict missing required key: {key}")
 
         # Check baseline
         if self.stereo_baseline <= 0:
             errors.append(
                 f"stereo_baseline must be positive, got {self.stereo_baseline}"
             )
+
+        # Check perspective transforms are 3x3
+        if self.camera_left_transform.shape != (3, 3):
+            errors.append(
+                f"camera_left_transform must be 3x3, got {self.camera_left_transform.shape}"
+            )
+        if self.camera_right_transform.shape != (3, 3):
+            errors.append(
+                f"camera_right_transform must be 3x3, got {self.camera_right_transform.shape}"
+            )
+
+        # Check transforms are invertible (non-singular)
+        for name, transform in [
+            ("camera_left_transform", self.camera_left_transform),
+            ("camera_right_transform", self.camera_right_transform),
+        ]:
+            if transform.shape == (3, 3):
+                det = np.linalg.det(transform)
+                if np.abs(det) < 1e-10:
+                    errors.append(f"{name} is singular (det={det:.2e})")
 
         return errors
 
@@ -237,35 +314,51 @@ class CalibrationData:
 
         Args:
             path: File path to save to
+
+        Raises:
+            CalibrationDataError: If save fails
         """
-        data = {
-            "version": self.version,
-            "timestamp": self.timestamp.isoformat(),
-            "stereo_baseline": float(self.stereo_baseline),
-            "image_size": list(self.image_size),
-            "reference_board_size": list(self.reference_board_size),
-            "camera_left_matrix": self.camera_left_matrix.tolist(),
-            "camera_right_matrix": self.camera_right_matrix.tolist(),
-            "dist_coeffs_left": self.dist_coeffs_left.tolist(),
-            "dist_coeffs_right": self.dist_coeffs_right.tolist(),
-            "rotation_matrix": self.rotation_matrix.tolist(),
-            "translation_vector": self.translation_vector.flatten().tolist(),
-            "rectify_left": self.rectify_left.tolist(),
-            "rectify_right": self.rectify_right.tolist(),
-            "projection_left": self.projection_left.tolist(),
-            "projection_right": self.projection_right.tolist(),
-            "disparity_to_depth": self.disparity_to_depth.tolist(),
-            "zone_boundaries": self.zone_boundaries.tolist(),
-            "height_thresholds": self.height_thresholds.tolist(),
-            "camera_left_transform": self.camera_left_transform.tolist(),
-            "camera_right_transform": self.camera_right_transform.tolist(),
-        }
+        try:
+            # Convert zone_boundaries appropriately
+            if isinstance(self.zone_boundaries, np.ndarray):
+                zone_boundaries_data = self.zone_boundaries.tolist()
+            else:
+                zone_boundaries_data = self.zone_boundaries
 
-        path_obj = Path(path)
-        path_obj.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "version": self.version,
+                "timestamp": self.timestamp.isoformat(),
+                "stereo_baseline": float(self.stereo_baseline),
+                "image_size": list(self.image_size),
+                "reference_board_size": list(self.reference_board_size),
+                "camera_left_matrix": self.camera_left_matrix.tolist(),
+                "camera_right_matrix": self.camera_right_matrix.tolist(),
+                "dist_coeffs_left": self.dist_coeffs_left.tolist(),
+                "dist_coeffs_right": self.dist_coeffs_right.tolist(),
+                "rotation_matrix": self.rotation_matrix.tolist(),
+                "translation_vector": self.translation_vector.flatten().tolist(),
+                "rectify_left": self.rectify_left.tolist(),
+                "rectify_right": self.rectify_right.tolist(),
+                "projection_left": self.projection_left.tolist(),
+                "projection_right": self.projection_right.tolist(),
+                "disparity_to_depth": self.disparity_to_depth.tolist(),
+                "zone_boundaries": zone_boundaries_data,
+                "height_thresholds": self.height_thresholds.tolist(),
+                "camera_left_transform": self.camera_left_transform.tolist(),
+                "camera_right_transform": self.camera_right_transform.tolist(),
+                "calibration_quality": self.calibration_quality,
+                "left_calibration_points": self.left_calibration_points.tolist(),
+                "right_calibration_points": self.right_calibration_points.tolist(),
+            }
 
-        with open(path_obj, "w") as f:
-            yaml.dump(data, f, default_flow_style=False)
+            path_obj = Path(path)
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(path_obj, "w") as f:
+                yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+        except Exception as e:
+            raise CalibrationDataError(f"Failed to save calibration data: {e}") from e
 
     @classmethod
     def load(cls, path: str) -> "CalibrationData":
@@ -280,55 +373,117 @@ class CalibrationData:
 
         Raises:
             FileNotFoundError: If file doesn't exist
-            ValueError: If file format is invalid
+            CalibrationDataError: If file format is invalid
         """
         path_obj = Path(path)
         if not path_obj.exists():
             raise FileNotFoundError(f"Calibration file not found: {path}")
 
-        with open(path_obj, "r") as f:
-            data = yaml.safe_load(f)
+        try:
+            with open(path_obj, "r") as f:
+                data = yaml.safe_load(f)
 
-        if not isinstance(data, dict):
-            raise ValueError(f"Invalid calibration file format: {path}")
+            if not isinstance(data, dict):
+                raise CalibrationDataError(f"Invalid calibration file format: {path}")
 
-        # Parse timestamp
-        timestamp = datetime.fromisoformat(
-            data.get("timestamp", datetime.now().isoformat())
-        )
+            # Parse timestamp
+            timestamp_str = data.get("timestamp")
+            if timestamp_str:
+                timestamp = datetime.fromisoformat(timestamp_str)
+            else:
+                timestamp = datetime.now()
 
-        return cls(
-            version=data.get("version", "1.0"),
-            timestamp=timestamp,
-            stereo_baseline=data.get("stereo_baseline", 20.0),
-            image_size=tuple(data.get("image_size", [640, 480])),
-            reference_board_size=tuple(data.get("reference_board_size", [44.0, 9.0])),
-            camera_left_matrix=np.array(data.get("camera_left_matrix", np.eye(3))),
-            camera_right_matrix=np.array(data.get("camera_right_matrix", np.eye(3))),
-            dist_coeffs_left=np.array(data.get("dist_coeffs_left", np.zeros(5))),
-            dist_coeffs_right=np.array(data.get("dist_coeffs_right", np.zeros(5))),
-            rotation_matrix=np.array(data.get("rotation_matrix", np.eye(3))),
-            translation_vector=np.array(data.get("translation_vector", np.zeros(3))),
-            rectify_left=np.array(data.get("rectify_left", np.eye(3))),
-            rectify_right=np.array(data.get("rectify_right", np.eye(3))),
-            projection_left=np.array(
-                data.get("projection_left", np.hstack([np.eye(3), np.zeros((3, 1))]))
-            ),
-            projection_right=np.array(
-                data.get("projection_right", np.hstack([np.eye(3), np.zeros((3, 1))]))
-            ),
-            disparity_to_depth=np.array(data.get("disparity_to_depth", np.eye(4))),
-            zone_boundaries=np.array(data.get("zone_boundaries", np.zeros((32, 4, 2)))),
-            height_thresholds=np.array(
-                data.get("height_thresholds", [17.9, 21.3, 24.7, 28.1, 31.5, 34.9])
-            ),
-            camera_left_transform=np.array(
-                data.get("camera_left_transform", np.eye(3))
-            ),
-            camera_right_transform=np.array(
-                data.get("camera_right_transform", np.eye(3))
-            ),
-        )
+            # Handle zone_boundaries - can be dict or list/array
+            zone_boundaries = data.get("zone_boundaries")
+            if isinstance(zone_boundaries, list):
+                zone_boundaries = np.array(zone_boundaries, dtype=np.float64)
+            elif zone_boundaries is None:
+                zone_boundaries = np.zeros((32, 4, 2), dtype=np.float64)
+
+            return cls(
+                version=data.get("version", "1.0"),
+                timestamp=timestamp,
+                stereo_baseline=data.get("stereo_baseline", 20.0),
+                image_size=tuple(data.get("image_size", [640, 480])),
+                reference_board_size=tuple(
+                    data.get("reference_board_size", [44.0, 9.0])
+                ),
+                camera_left_matrix=np.array(
+                    data.get("camera_left_matrix", np.eye(3)), dtype=np.float64
+                ),
+                camera_right_matrix=np.array(
+                    data.get("camera_right_matrix", np.eye(3)), dtype=np.float64
+                ),
+                dist_coeffs_left=np.array(
+                    data.get("dist_coeffs_left", np.zeros(5)), dtype=np.float64
+                ),
+                dist_coeffs_right=np.array(
+                    data.get("dist_coeffs_right", np.zeros(5)), dtype=np.float64
+                ),
+                rotation_matrix=np.array(
+                    data.get("rotation_matrix", np.eye(3)), dtype=np.float64
+                ),
+                translation_vector=np.array(
+                    data.get("translation_vector", np.zeros(3)), dtype=np.float64
+                ),
+                rectify_left=np.array(
+                    data.get("rectify_left", np.eye(3)), dtype=np.float64
+                ),
+                rectify_right=np.array(
+                    data.get("rectify_right", np.eye(3)), dtype=np.float64
+                ),
+                projection_left=np.array(
+                    data.get(
+                        "projection_left", np.hstack([np.eye(3), np.zeros((3, 1))])
+                    ),
+                    dtype=np.float64,
+                ),
+                projection_right=np.array(
+                    data.get(
+                        "projection_right", np.hstack([np.eye(3), np.zeros((3, 1))])
+                    ),
+                    dtype=np.float64,
+                ),
+                disparity_to_depth=np.array(
+                    data.get("disparity_to_depth", np.eye(4)), dtype=np.float64
+                ),
+                zone_boundaries=zone_boundaries,
+                height_thresholds=np.array(
+                    data.get("height_thresholds", [17.9, 21.3, 24.7, 28.1, 31.5, 34.9]),
+                    dtype=np.float64,
+                ),
+                camera_left_transform=np.array(
+                    data.get("camera_left_transform", np.eye(3)), dtype=np.float64
+                ),
+                camera_right_transform=np.array(
+                    data.get("camera_right_transform", np.eye(3)), dtype=np.float64
+                ),
+                calibration_quality=data.get(
+                    "calibration_quality",
+                    {
+                        "left_quality_score": 0.0,
+                        "right_quality_score": 0.0,
+                        "left_mean_error": 0.0,
+                        "right_mean_error": 0.0,
+                        "left_max_error": 0.0,
+                        "right_max_error": 0.0,
+                    },
+                ),
+                left_calibration_points=np.array(
+                    data.get("left_calibration_points", np.zeros((4, 2))),
+                    dtype=np.float64,
+                ),
+                right_calibration_points=np.array(
+                    data.get("right_calibration_points", np.zeros((4, 2))),
+                    dtype=np.float64,
+                ),
+            )
+        except FileNotFoundError:
+            raise
+        except CalibrationDataError:
+            raise
+        except Exception as e:
+            raise CalibrationDataError(f"Failed to load calibration data: {e}") from e
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -337,32 +492,116 @@ class CalibrationData:
         Returns:
             Dictionary representation of calibration data
         """
+        # Convert zone_boundaries appropriately
+        if isinstance(self.zone_boundaries, np.ndarray):
+            zone_boundaries_data = self.zone_boundaries.tolist()
+        else:
+            zone_boundaries_data = self.zone_boundaries
+
         return {
             "version": self.version,
             "timestamp": self.timestamp.isoformat(),
             "stereo_baseline": self.stereo_baseline,
             "image_size": self.image_size,
             "reference_board_size": self.reference_board_size,
-            "camera_left_matrix": self.camera_left_matrix,
-            "camera_right_matrix": self.camera_right_matrix,
-            "dist_coeffs_left": self.dist_coeffs_left,
-            "dist_coeffs_right": self.dist_coeffs_right,
-            "rotation_matrix": self.rotation_matrix,
-            "translation_vector": self.translation_vector,
-            "rectify_left": self.rectify_left,
-            "rectify_right": self.rectify_right,
-            "projection_left": self.projection_left,
-            "projection_right": self.projection_right,
-            "disparity_to_depth": self.disparity_to_depth,
-            "zone_boundaries": self.zone_boundaries,
-            "height_thresholds": self.height_thresholds,
-            "camera_left_transform": self.camera_left_transform,
-            "camera_right_transform": self.camera_right_transform,
+            "camera_left_matrix": self.camera_left_matrix.tolist(),
+            "camera_right_matrix": self.camera_right_matrix.tolist(),
+            "dist_coeffs_left": self.dist_coeffs_left.tolist(),
+            "dist_coeffs_right": self.dist_coeffs_right.tolist(),
+            "rotation_matrix": self.rotation_matrix.tolist(),
+            "translation_vector": self.translation_vector.tolist(),
+            "rectify_left": self.rectify_left.tolist(),
+            "rectify_right": self.rectify_right.tolist(),
+            "projection_left": self.projection_left.tolist(),
+            "projection_right": self.projection_right.tolist(),
+            "disparity_to_depth": self.disparity_to_depth.tolist(),
+            "zone_boundaries": zone_boundaries_data,
+            "height_thresholds": self.height_thresholds.tolist(),
+            "camera_left_transform": self.camera_left_transform.tolist(),
+            "camera_right_transform": self.camera_right_transform.tolist(),
+            "calibration_quality": self.calibration_quality,
+            "left_calibration_points": self.left_calibration_points.tolist(),
+            "right_calibration_points": self.right_calibration_points.tolist(),
         }
+
+    def copy(self) -> "CalibrationData":
+        """
+        Create a deep copy of the calibration data.
+
+        Returns:
+            New CalibrationData instance with copied values
+        """
+        return CalibrationData(
+            version=self.version,
+            timestamp=self.timestamp,
+            stereo_baseline=self.stereo_baseline,
+            image_size=self.image_size,
+            reference_board_size=self.reference_board_size,
+            camera_left_matrix=self.camera_left_matrix.copy(),
+            camera_right_matrix=self.camera_right_matrix.copy(),
+            dist_coeffs_left=self.dist_coeffs_left.copy(),
+            dist_coeffs_right=self.dist_coeffs_right.copy(),
+            rotation_matrix=self.rotation_matrix.copy(),
+            translation_vector=self.translation_vector.copy(),
+            rectify_left=self.rectify_left.copy(),
+            rectify_right=self.rectify_right.copy(),
+            projection_left=self.projection_left.copy(),
+            projection_right=self.projection_right.copy(),
+            disparity_to_depth=self.disparity_to_depth.copy(),
+            zone_boundaries=(
+                self.zone_boundaries.copy()
+                if isinstance(self.zone_boundaries, np.ndarray)
+                else copy.deepcopy(self.zone_boundaries)
+            ),
+            height_thresholds=self.height_thresholds.copy(),
+            camera_left_transform=self.camera_left_transform.copy(),
+            camera_right_transform=self.camera_right_transform.copy(),
+            calibration_quality=copy.deepcopy(self.calibration_quality),
+            left_calibration_points=self.left_calibration_points.copy(),
+            right_calibration_points=self.right_calibration_points.copy(),
+        )
+
+    def get_quality_score(self) -> float:
+        """
+        Get overall calibration quality score.
+
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        left_score = self.calibration_quality.get("left_quality_score", 0.0)
+        right_score = self.calibration_quality.get("right_quality_score", 0.0)
+        return (left_score + right_score) / 2.0
+
+    def get_summary(self) -> str:
+        """
+        Get human-readable summary of calibration data.
+
+        Returns:
+            Summary string
+        """
+        quality = self.get_quality_score()
+        errors = self.validate()
+        status = "Valid" if not errors else f"Invalid ({len(errors)} errors)"
+
+        return (
+            f"ChunIVision Calibration Data\n"
+            f"{'=' * 40}\n"
+            f"Version: {self.version}\n"
+            f"Timestamp: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"Status: {status}\n"
+            f"Quality Score: {quality:.1%}\n"
+            f"Image Size: {self.image_size[0]}x{self.image_size[1]}\n"
+            f"Stereo Baseline: {self.stereo_baseline:.1f}cm\n"
+            f"Board Size: {self.reference_board_size[0]:.1f}x{self.reference_board_size[1]:.1f}cm\n"
+            f"Height Levels: {len(self.height_thresholds)}\n"
+        )
 
     @classmethod
     def create_default(
-        cls, image_size: Tuple[int, int] = (640, 480)
+        cls,
+        image_size: Tuple[int, int] = (640, 480),
+        board_size: Tuple[float, float] = (44.0, 9.0),
+        zone_grid: Tuple[int, int] = (16, 2),
     ) -> "CalibrationData":
         """
         Create default calibration data with reasonable estimates.
@@ -372,6 +611,8 @@ class CalibrationData:
 
         Args:
             image_size: Image dimensions (width, height)
+            board_size: Calibration board size (width, height) in cm
+            zone_grid: Number of zones (columns, rows)
 
         Returns:
             CalibrationData with default values
@@ -404,11 +645,38 @@ class CalibrationData:
             dtype=np.float64,
         )
 
+        # Calculate zone boundaries
+        cols, rows = zone_grid
+        zone_width = board_size[0] / cols
+        zone_height = board_size[1] / rows
+        zone_boundaries = {
+            "grid": list(zone_grid),
+            "zone_size": [zone_width, zone_height],
+            "zones": [],
+        }
+
+        for row in range(rows):
+            for col in range(cols):
+                x_min = col * zone_width
+                y_min = row * zone_height
+                x_max = (col + 1) * zone_width
+                y_max = (row + 1) * zone_height
+
+                zone_boundaries["zones"].append(
+                    {
+                        "id": row * cols + col,
+                        "bounds": [x_min, y_min, x_max, y_max],
+                        "center": [(x_min + x_max) / 2, (y_min + y_max) / 2],
+                    }
+                )
+
         return cls(
             image_size=image_size,
+            reference_board_size=board_size,
             camera_left_matrix=camera_matrix.copy(),
             camera_right_matrix=camera_matrix.copy(),
             translation_vector=translation,
             disparity_to_depth=Q,
             stereo_baseline=baseline,
+            zone_boundaries=zone_boundaries,
         )
