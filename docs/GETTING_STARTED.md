@@ -1,14 +1,14 @@
 # Getting Started with ChunIVision Development
 
-**Author**: Misaka 19465  
+**Author**: Misaka 19465
 **Platform**: Windows Only
 
 This guide helps you start implementing the ChunIVision framework.
 
 ## Project Status
 
-**Framework Status**: ✅ Complete  
-**Implementation Status**: 🚧 Ready for development  
+**Framework Status**: ✅ Complete
+**Implementation Status**: 🚧 Ready for development
 **Target Platform**: Windows 10/11 only
 
 The complete modular framework has been designed and documented. All module interfaces, data structures, and protocols are specified. Now ready for implementation.
@@ -29,7 +29,6 @@ The complete modular framework has been designed and documented. All module inte
 - **Windows SDK**: For HID device emulation
 - **Visual Studio Build Tools**: For compiling Python extensions (if needed)
 - **com0com**: For virtual serial port emulation (optional)
-- **ViGEm**: For HID controller emulation (optional)
 
 ## What's Been Created
 
@@ -303,27 +302,27 @@ python -m chunivision.main --mode debug --log-level DEBUG
 
 ### 1. Camera Synchronization
 
-**Challenge**: Ensuring frames from both cameras are captured at same time  
+**Challenge**: Ensuring frames from both cameras are captured at same time
 **Solution**: Use hardware sync if available, or timestamp-based matching
 
 ### 2. Real-time Performance
 
-**Challenge**: Meeting <10ms latency target  
+**Challenge**: Meeting <10ms latency target
 **Solution**: Optimize critical path, use compiled code (Cython), GPU acceleration
 
 ### 3. Calibration Accuracy
 
-**Challenge**: Users struggle with precise point selection  
+**Challenge**: Users struggle with precise point selection
 **Solution**: Implement zoom, undo, visual feedback in calibration UI
 
 ### 4. Zone Boundary Handling
 
-**Challenge**: Ambiguous zone assignment at boundaries  
+**Challenge**: Ambiguous zone assignment at boundaries
 **Solution**: Use smooth transitions, confidence scoring
 
 ### 5. Height Estimation Stability
 
-**Challenge**: Noisy height readings  
+**Challenge**: Noisy height readings
 **Solution**: Implement hysteresis, Kalman filtering, temporal smoothing
 
 ## Resources
@@ -356,13 +355,13 @@ python -m chunivision.main --mode debug --log-level DEBUG
 
 You'll know the implementation is successful when:
 
-✅ Both cameras capture synchronized frames at 60 FPS  
-✅ Calibration produces accurate zone mapping  
-✅ Touch detection has >95% accuracy  
-✅ Height estimation is within ±2cm  
-✅ End-to-end latency is <10ms  
-✅ All output protocols work correctly  
-✅ System runs stably for hours without issues  
+✅ Both cameras capture synchronized frames at 60 FPS
+✅ Calibration produces accurate zone mapping
+✅ Touch detection has >95% accuracy
+✅ Height estimation is within ±2cm
+✅ End-to-end latency is <10ms
+✅ All output protocols work correctly
+✅ System runs stably for hours without issues
 
 ## Next Steps
 

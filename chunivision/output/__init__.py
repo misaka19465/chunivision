@@ -1,17 +1,24 @@
 """
 Output adapters for ChunIVision.
 
-This module will contain output adapters for different protocols:
-- Serial (COM port)
-- HID (USB device)
-- Keyboard (virtual keyboard)
-- UDP (network)
-
-Note: This module is currently a placeholder. Implementation is planned for Phase 4.
+This module contains output adapters for different protocols:
+- BaseOutput: Abstract base class for all outputs
+- OutputManager: Manages multiple outputs simultaneously
+- ConsoleOutput: Terminal display output
+- Serial (COM port) - TODO: Phase 4
+- HID (USB device) - TODO: Phase 4
+- Keyboard (virtual keyboard) - TODO: Phase 4
+- UDP (network) - TODO: Phase 4
 """
 
-# TODO: Implement output adapters in Phase 4
-# from .base_output import BaseOutput
-# from .output_manager import OutputManager
+from .base_output import BaseOutput, OutputError, OutputStats
+from .console_output import ConsoleOutput
+from .output_manager import OutputManager
 
-__all__ = []
+__all__ = [
+    "BaseOutput",
+    "OutputError",
+    "OutputStats",
+    "ConsoleOutput",
+    "OutputManager",
+]
