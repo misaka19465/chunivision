@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ChunIVision Calibration Chessboard Pattern
+
+  Specifications:
+  - Inner corners: 9 × 6 (for OpenCV detection)
+  - Squares: 10 × 7
+  - Square size: 25mm × 25mm (2.5cm)
+  - Total pattern: 250mm × 175mm
+  - Paper: A4 (297mm × 210mm)
+  - Margins: ~23.5mm horizontal, ~17.5mm vertical
+
+  Print at 100% scale (no scaling/fit to page)
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="297mm"
+     height="210mm"
+     viewBox="0 0 297 210">
+
+  <!-- White background (A4 paper) -->
+  <rect x="0" y="0" width="297" height="210" fill="white"/>
+
+  <!-- Title and instructions (top margin) -->
+  <text x="148.5" y="8"
+        font-family="Arial, sans-serif"
+        font-size="4"
+        text-anchor="middle"
+        fill="#666">
+    ChunIVision Calibration Pattern - 9×6 inner corners, 25mm squares
+  </text>
+
+  <!-- Chessboard pattern centered on A4 -->
+  <!-- Pattern origin: (23.5, 17.5) to center 250×175mm on 297×210mm -->
+  <g transform="translate(23.5, 17.5)">
+
+    <!-- Row 0 (y=0) -->
+    <rect x="0" y="0" width="25" height="25" fill="black"/>
+    <rect x="50" y="0" width="25" height="25" fill="black"/>
+    <rect x="100" y="0" width="25" height="25" fill="black"/>
+    <rect x="150" y="0" width="25" height="25" fill="black"/>
+    <rect x="200" y="0" width="25" height="25" fill="black"/>
+
+    <!-- Row 1 (y=25) -->
+    <rect x="25" y="25" width="25" height="25" fill="black"/>
+    <rect x="75" y="25" width="25" height="25" fill="black"/>
+    <rect x="125" y="25" width="25" height="25" fill="black"/>
+    <rect x="175" y="25" width="25" height="25" fill="black"/>
+    <rect x="225" y="25" width="25" height="25" fill="black"/>
+
+    <!-- Row 2 (y=50) -->
+    <rect x="0" y="50" width="25" height="25" fill="black"/>
+    <rect x="50" y="50" width="25" height="25" fill="black"/>
+    <rect x="100" y="50" width="25" height="25" fill="black"/>
+    <rect x="150" y="50" width="25" height="25" fill="black"/>
+    <rect x="200" y="50" width="25" height="25" fill="black"/>
+
+    <!-- Row 3 (y=75) -->
+    <rect x="25" y="75" width="25" height="25" fill="black"/>
+    <rect x="75" y="75" width="25" height="25" fill="black"/>
+    <rect x="125" y="75" width="25" height="25" fill="black"/>
+    <rect x="175" y="75" width="25" height="25" fill="black"/>
+    <rect x="225" y="75" width="25" height="25" fill="black"/>
+
+    <!-- Row 4 (y=100) -->
+    <rect x="0" y="100" width="25" height="25" fill="black"/>
+    <rect x="50" y="100" width="25" height="25" fill="black"/>
+    <rect x="100" y="100" width="25" height="25" fill="black"/>
+    <rect x="150" y="100" width="25" height="25" fill="black"/>
+    <rect x="200" y="100" width="25" height="25" fill="black"/>
+
+    <!-- Row 5 (y=125) -->
+    <rect x="25" y="125" width="25" height="25" fill="black"/>
+    <rect x="75" y="125" width="25" height="25" fill="black"/>
+    <rect x="125" y="125" width="25" height="25" fill="black"/>
+    <rect x="175" y="125" width="25" height="25" fill="black"/>
+    <rect x="225" y="125" width="25" height="25" fill="black"/>
+
+    <!-- Row 6 (y=150) -->
+    <rect x="0" y="150" width="25" height="25" fill="black"/>
+    <rect x="50" y="150" width="25" height="25" fill="black"/>
+    <rect x="100" y="150" width="25" height="25" fill="black"/>
+    <rect x="150" y="150" width="25" height="25" fill="black"/>
+    <rect x="200" y="150" width="25" height="25" fill="black"/>
+
+    <!-- Border around the pattern for visual reference -->
+    <rect x="0" y="0" width="250" height="175"
+          fill="none" stroke="#ccc" stroke-width="0.2"/>
+
+  </g>
+
+  <!-- Dimension annotations -->
+  <g font-family="Arial, sans-serif" font-size="3" fill="#999">
+
+    <!-- Horizontal dimension (top) -->
+    <line x1="23.5" y1="14" x2="273.5" y2="14" stroke="#999" stroke-width="0.2"/>
+    <line x1="23.5" y1="13" x2="23.5" y2="15" stroke="#999" stroke-width="0.2"/>
+    <line x1="273.5" y1="13" x2="273.5" y2="15" stroke="#999" stroke-width="0.2"/>
+    <text x="148.5" y="13" text-anchor="middle">250mm (10 × 25mm)</text>
+
+    <!-- Vertical dimension (right) -->
+    <line x1="280" y1="17.5" x2="280" y2="192.5" stroke="#999" stroke-width="0.2"/>
+    <line x1="279" y1="17.5" x2="281" y2="17.5" stroke="#999" stroke-width="0.2"/>
+    <line x1="279" y1="192.5" x2="281" y2="192.5" stroke="#999" stroke-width="0.2"/>
+    <text x="283" y="105" text-anchor="start"
+          transform="rotate(90, 283, 105)">175mm (7 × 25mm)</text>
+
+    <!-- Square size indicator (bottom left) -->
+    <text x="23.5" y="200" text-anchor="start">Square: 25mm × 25mm</text>
+    <text x="23.5" y="205" text-anchor="start">Inner corners: 9 × 6</text>
+
+    <!-- Print instruction (bottom right) -->
+    <text x="273.5" y="205" text-anchor="end">Print at 100% scale</text>
+
+  </g>
+
+</svg>

@@ -33,6 +33,17 @@ class ChessboardConfig:
     """
     Configuration for chessboard calibration.
 
+    Default values match the printable calibration pattern:
+    docs/calibration_chessboard.svg
+
+    Pattern specifications:
+    - Inner corners: 9 × 6 (10 × 7 squares)
+    - Square size: 25mm (2.5cm)
+    - Pattern size: 250mm × 175mm
+    - Paper: A4 (297mm × 210mm)
+
+    Print the SVG at 100% scale (no fit-to-page) for accurate dimensions.
+
     Attributes:
         pattern_size: Number of inner corners (columns, rows)
         square_size: Physical size of each square in cm
@@ -44,8 +55,9 @@ class ChessboardConfig:
         corner_refinement_epsilon: Convergence epsilon for corner refinement
     """
 
-    pattern_size: Tuple[int, int] = (9, 6)  # Standard 9x6 inner corners
-    square_size: float = 2.5  # 2.5 cm squares fit well on A4
+    # Pattern matches docs/calibration_chessboard.svg
+    pattern_size: Tuple[int, int] = (9, 6)  # 9×6 inner corners (10×7 squares)
+    square_size: float = 2.5  # 25mm = 2.5cm per square
     a4_paper_size: Tuple[float, float] = (29.7, 21.0)  # A4 in cm (landscape)
     min_captures: int = 5  # Minimum captures needed
     min_quality_threshold: float = 0.5
