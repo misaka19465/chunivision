@@ -6,8 +6,8 @@ tracking using dual infrared cameras.
 """
 
 __version__ = "1.0.0"
-__author__ = "ChunIVision Team"
+__author__ = "Misaka 19465"
 
 from .main import main
 
-__all__ = ['main']
+__all__ = ["main"]

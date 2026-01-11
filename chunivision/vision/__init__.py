@@ -1,5 +1,5 @@
 """Vision processing modules for ChunIVision."""
 
-from .vision_pipeline import VisionPipeline
+from .camera_manager import CameraInitError, CameraManager
 
-__all__ = ['VisionPipeline']
+__all__ = ["CameraManager", "CameraInitError"]

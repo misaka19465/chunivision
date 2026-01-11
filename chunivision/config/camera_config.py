@@ -5,7 +5,7 @@ Defines camera positions, orientations, and capture settings.
 """
 
 from dataclasses import dataclass, field
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import numpy as np
 
 
@@ -15,8 +15,8 @@ class CameraConfig:
     Camera hardware configuration.
 
     Attributes:
-        left_camera_index: Camera device index for left camera
-        right_camera_index: Camera device index for right camera
+        left_camera_serial: USB serial number for left camera (required)
+        right_camera_serial: USB serial number for right camera (required)
         resolution: Camera resolution as (width, height)
         fps: Target frame rate
         exposure: Exposure setting (-1 for auto)
@@ -27,8 +27,9 @@ class CameraConfig:
         right_camera_angle: Angle of right camera in degrees
     """
 
-    left_camera_index: int = 0
-    right_camera_index: int = 1
+    # USB serial numbers for identifying specific camera devices (required)
+    left_camera_serial: str
+    right_camera_serial: str
     resolution: Tuple[int, int] = (640, 480)
     fps: int = 60
     exposure: int = -1  # -1 for auto
@@ -78,19 +79,16 @@ class CameraConfig:
         """
         errors = []
 
-        # Validate camera indices
-        if self.left_camera_index < 0:
-            errors.append(
-                f"Invalid left camera index: {self.left_camera_index} (must be >= 0)"
-            )
+        # Validate serial numbers
+        if not self.left_camera_serial:
+            errors.append("Left camera serial number is required")
 
-        if self.right_camera_index < 0:
-            errors.append(
-                f"Invalid right camera index: {self.right_camera_index} (must be >= 0)"
-            )
+        if not self.right_camera_serial:
+            errors.append("Right camera serial number is required")
 
-        if self.left_camera_index == self.right_camera_index:
-            errors.append("Left and right camera indices must be different")
+        if self.left_camera_serial and self.right_camera_serial:
+            if self.left_camera_serial == self.right_camera_serial:
+                errors.append("Left and right camera serials must be different")
 
         # Validate resolution
         if len(self.resolution) != 2:
@@ -192,8 +190,8 @@ class CameraConfig:
             Dictionary representation of camera config
         """
         return {
-            "left_camera_index": self.left_camera_index,
-            "right_camera_index": self.right_camera_index,
+            "left_camera_serial": self.left_camera_serial,
+            "right_camera_serial": self.right_camera_serial,
             "resolution": list(self.resolution),
             "fps": self.fps,
             "exposure": self.exposure,

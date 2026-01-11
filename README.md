@@ -100,7 +100,7 @@ chunivision/
 │       ├── geometry.py            # Geometric calculations
 │       └── state_manager.py       # Game state management
 │
-├── oculus/                  # Camera library (existing)
+    ├── oculus/              # Camera library (Oculus Rift CV1)
 │   ├── __init__.py
 │   ├── camera.py
 │   ├── triple_buffer.py
@@ -201,7 +201,7 @@ chunivision/
 
 ```
 User facing forward (↓)
-                                    
+
 Row 1: [32][30][28][26][24][22][20][18]|[16][14][12][10][ 8][ 6][ 4][ 2]
        ─────────────────────────────────┼─────────────────────────────────
 Row 0: [31][29][27][25][23][21][19][17]|[15][13][11][ 9][ 7][ 5][ 3][ 1]

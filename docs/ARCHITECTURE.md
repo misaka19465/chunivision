@@ -1,7 +1,7 @@
 # ChunIVision Architecture Documentation
 
-**Author**: Misaka 19465  
-**Platform**: Windows Only  
+**Author**: Misaka 19465
+**Platform**: Windows Only
 **Version**: 1.0
 
 ## System Overview
@@ -192,7 +192,7 @@ class StereoProcessor:
 class HandDetector:
     def detect(point_cloud: PointCloud3D) -> List[Hand]
     def track(hands: List[Hand], previous_hands: List[Hand]) -> List[Hand]
-    
+
 class Hand:
     position: Point3D
     velocity: Vector3D
@@ -220,7 +220,7 @@ class Hand:
 class TouchDetector:
     def __init__(zone_config: ZoneConfig)
     def detect_touches(hands: List[Hand]) -> TouchState
-    
+
 class TouchState:
     zones: np.ndarray  # 32 booleans
     timestamp: float
@@ -245,7 +245,7 @@ class TouchState:
 ```python
 class HeightEstimator:
     def estimate_heights(hands: List[Hand]) -> HeightState
-    
+
 class HeightState:
     levels: np.ndarray  # 6 booleans
     timestamp: float
@@ -350,7 +350,7 @@ class TransformCalculator:
         image_points: List[Point2D],
         world_points: List[Point2D]
     ) -> Transform
-    
+
     def validate_transform(transform: Transform) -> float  # Quality score
 ```
 
@@ -392,13 +392,13 @@ All output adapters inherit from `BaseOutput` and implement a common interface.
 class BaseOutput(ABC):
     @abstractmethod
     def initialize() -> bool
-    
+
     @abstractmethod
     def send_state(touch_state: TouchState, height_state: HeightState) -> None
-    
+
     @abstractmethod
     def close() -> None
-    
+
     def is_connected() -> bool
 ```
 
@@ -598,18 +598,76 @@ Output Thread
    - Each module tested independently
    - Mock dependencies
    - Test edge cases
+   - No hardware required
 
 2. **Integration Tests:**
    - Pipeline end-to-end tests
    - Calibration workflow tests
    - Output protocol tests
+   - Use mocked hardware components
 
 3. **Performance Tests:**
    - Latency benchmarks
    - FPS stress tests
    - Memory leak detection
 
-4. **Hardware-in-Loop Tests:**
-   - Real camera testing
+4. **Hardware Tests:**
+   - **Marked with `@pytest.mark.hardware` decorator**
+   - Require physical hardware connections (cameras, USB devices)
+   - Test actual camera initialization and communication
+   - Verify USB device enumeration and serial numbers
    - Real-world calibration scenarios
    - Game integration testing
+   - **Run separately from unit tests using:** `pytest -m hardware`
+   - **Skip in CI/automated environments without hardware**
+
+### Hardware Test Requirements
+
+Hardware tests validate the system's interaction with physical devices:
+
+- **Camera Connection Tests**: Verify Oculus Rift CV1 cameras can be detected, opened, and configured
+- **USB Communication Tests**: Test USB device enumeration, serial number reading, and device matching
+- **Streaming Tests**: Validate frame capture, callback mechanisms, and data transfer
+- **Multi-Device Tests**: Ensure dual cameras can operate simultaneously without conflicts
+- **Calibration Verification**: Test real camera distortion correction and calibration data
+
+**Running Hardware Tests:**
+
+```bash
+# Run only hardware tests
+pytest -m hardware -v
+
+# Run all tests except hardware tests
+pytest -m "not hardware" -v
+
+# Run all tests including hardware tests
+pytest -v
+```
+
+**Marking Hardware Tests:**
+
+```python
+import pytest
+from chunivision.oculus import list_oculus_cameras
+
+def is_hardware_available() -> bool:
+    """Check if Oculus cameras are connected and available."""
+    try:
+        cameras = list_oculus_cameras()
+        return len(cameras) > 0
+    except Exception:
+        return False
+
+@pytest.mark.hardware
+@pytest.mark.skipif(
+    not is_hardware_available(),
+    reason="hardware needed."
+)
+def test_actual_camera_connection():
+    """Test requires physical Oculus cameras connected.
+
+    Automatically skips if cameras not available.
+    """
+    cameras = list_oculus_cameras()
+    assert len(cameras) >= 2
+```

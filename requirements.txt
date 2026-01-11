@@ -8,6 +8,9 @@ pyyaml>=5.4.0
 # Vision processing
 scipy>=1.7.0
 
+# Oculus module
+libusb1>=1.8.0
+
 # Output adapters
 pyserial>=3.5  # Serial port support
 pynput>=1.7.6  # Keyboard emulation (cross-platform)

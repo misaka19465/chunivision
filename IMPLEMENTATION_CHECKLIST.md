@@ -75,19 +75,64 @@ Use this checklist to track your implementation progress.
 - [x] All Phase 1 unit tests passing
 - [x] Code coverage >80%
 
+### Oculus Camera Library (`chunivision/oculus/`)
+
+- [x] **exceptions.py**
+  - [x] Custom exception hierarchy
+  - [x] OculusError base class
+  - [x] Specific error types (DeviceNotFoundError, CommunicationError, etc.)
+
+- [x] **camera.py**
+  - [x] UVC control transfer helpers
+  - [x] ESP770U camera controller
+  - [x] AR0134 imaging sensor interface
+  - [x] OculusRiftCV1Camera high-level API
+  - [x] Lens undistortion/distortion
+  - [x] Input validation and error handling
+  - [x] Logging integration
+  - [x] Context manager support
+
+- [x] **triple_buffer.py**
+  - [x] Thread-safe triple buffering
+  - [x] Generic type support
+  - [x] Lock-based synchronization
+
+- [x] **viewer.py**
+  - [x] OpenCV camera viewer
+  - [x] Real-time undistortion
+  - [x] Side-by-side comparison mode
+
+- [x] **__init__.py**
+  - [x] Package exports
+  - [x] Version information
+  - [x] Documentation
+
+- [x] **tests/test_oculus.py**
+  - [x] TripleBuffer tests (7 tests)
+  - [x] UVC control tests (8 tests)
+  - [x] ESP770U tests (8 tests)
+  - [x] AR0134 sensor tests (9 tests)
+  - [x] OculusRiftCV1Camera tests (13 tests)
+  - [x] All 45 tests passing
+  - [x] Serial number support for device identification (required, not optional)
+  - [x] list_oculus_cameras() function for device enumeration
+  - [x] Index-based device selection completely removed (unreliable)
+
 ---
 
 ## 📷 Phase 2: Vision Processing (Weeks 3-5)
 
 ### Camera Management (`chunivision/vision/camera_manager.py`)
 
-- [ ] **CameraManager class**
-  - [ ] Camera initialization via oculus
-  - [ ] Dual camera synchronization
-  - [ ] Frame capture (get_frame_pair)
-  - [ ] Triple buffering integration
-  - [ ] Error handling and reconnection
-  - [ ] Unit tests with mock cameras
+- [x] **CameraManager class**
+  - [x] Camera initialization via oculus
+  - [x] Dual camera synchronization
+  - [x] Frame capture (get_frame_pair)
+  - [x] Triple buffering integration
+  - [x] Error handling and reconnection
+  - [x] Unit tests with mock cameras
+  - [x] USB serial number configuration support (required, not optional)
+  - [x] Index-based device selection removed (unreliable)
 
 ### Stereo Processing (`chunivision/vision/stereo_processor.py`)
 

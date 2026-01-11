@@ -238,16 +238,20 @@ class TestCameraConfig:
     """Tests for CameraConfig class."""
 
     def test_camera_config_creation(self):
-        """Test CameraConfig creation with defaults."""
-        config = CameraConfig()
-        assert config.left_camera_index == 0
-        assert config.right_camera_index == 1
+        """Test CameraConfig creation with serials."""
+        config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL", right_camera_serial="RIGHT_SERIAL"
+        )
+        assert config.left_camera_serial == "LEFT_SERIAL"
+        assert config.right_camera_serial == "RIGHT_SERIAL"
         assert config.resolution == (640, 480)
         assert config.fps == 60
 
     def test_camera_config_with_arrays(self):
         """Test CameraConfig with numpy arrays."""
         config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
             left_camera_position=np.array([-15.0, 20.0, 35.0]),
             right_camera_position=np.array([15.0, 20.0, 35.0]),
         )
@@ -258,6 +262,8 @@ class TestCameraConfig:
     def test_camera_config_with_lists(self):
         """Test CameraConfig converts lists to arrays."""
         config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
             left_camera_position=[-15.0, 20.0, 35.0],
             right_camera_position=[15.0, 20.0, 35.0],
             resolution=[1920, 1080],
@@ -269,14 +275,18 @@ class TestCameraConfig:
 
     def test_validate_camera_config(self):
         """Test camera configuration validation."""
-        config = CameraConfig()
+        config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL", right_camera_serial="RIGHT_SERIAL"
+        )
         errors = config.validate()
         assert len(errors) == 0
 
         # Test that invalid config raises ValueError
         # We can't create invalid config directly because __post_init__ validates
         # So just verify the validate() method works correctly
-        config_test = CameraConfig()
+        config_test = CameraConfig(
+            left_camera_serial="LEFT_SERIAL", right_camera_serial="RIGHT_SERIAL"
+        )
         # Temporarily modify to invalid state
         object.__setattr__(config_test, "fps", -1)
         errors = config_test.validate()
@@ -285,7 +295,11 @@ class TestCameraConfig:
 
     def test_get_dimensions(self):
         """Test getting camera dimensions."""
-        config = CameraConfig(resolution=(1920, 1080))
+        config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
+            resolution=(1920, 1080),
+        )
 
         assert config.get_width() == 1920
         assert config.get_height() == 1080
@@ -294,6 +308,8 @@ class TestCameraConfig:
     def test_baseline_vector(self):
         """Test baseline vector calculation."""
         config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
             left_camera_position=np.array([-10.0, 0.0, 0.0]),
             right_camera_position=np.array([10.0, 0.0, 0.0]),
         )
@@ -305,6 +321,8 @@ class TestCameraConfig:
     def test_calculated_baseline(self):
         """Test calculated baseline distance."""
         config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
             left_camera_position=np.array([-10.0, 0.0, 0.0]),
             right_camera_position=np.array([10.0, 0.0, 0.0]),
             baseline_distance=20.0,
@@ -318,6 +336,8 @@ class TestCameraConfig:
     def test_camera_center(self):
         """Test camera center calculation."""
         config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL",
+            right_camera_serial="RIGHT_SERIAL",
             left_camera_position=np.array([-10.0, 15.0, 30.0]),
             right_camera_position=np.array([10.0, 15.0, 30.0]),
         )
@@ -328,19 +348,22 @@ class TestCameraConfig:
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
-        config = CameraConfig()
+        config = CameraConfig(
+            left_camera_serial="LEFT_SERIAL", right_camera_serial="RIGHT_SERIAL"
+        )
         data = config.to_dict()
 
         assert isinstance(data, dict)
-        assert "left_camera_index" in data
+        assert "left_camera_serial" in data
+        assert "right_camera_serial" in data
         assert "resolution" in data
         assert isinstance(data["resolution"], list)
 
     def test_from_dict(self):
         """Test creation from dictionary."""
         data = {
-            "left_camera_index": 0,
-            "right_camera_index": 1,
+            "left_camera_serial": "LEFT_SERIAL",
+            "right_camera_serial": "RIGHT_SERIAL",
             "resolution": [1280, 720],
             "fps": 90,
             "left_camera_position": [-12.0, 18.0, 32.0],
