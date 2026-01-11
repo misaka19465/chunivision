@@ -136,13 +136,33 @@ Use this checklist to track your implementation progress.
 
 ### Stereo Processing (`chunivision/vision/stereo_processor.py`)
 
-- [ ] **StereoProcessor class**
-  - [ ] Stereo matching algorithm (SGBM)
-  - [ ] Depth map generation
-  - [ ] Point cloud creation
-  - [ ] Perspective transform application
-  - [ ] Performance optimization
-  - [ ] Unit tests
+- [x] **StereoProcessor class**
+  - [x] Stereo matching algorithm (SGBM)
+  - [x] Depth map generation
+  - [x] Point cloud creation
+  - [x] Perspective transform application
+  - [x] Performance optimization
+  - [x] Unit tests
+
+### Supporting Classes
+
+- [x] **CalibrationData class** (`chunivision/calibration/calibration_data.py`)
+  - [x] Stereo calibration parameters storage
+  - [x] YAML serialization/deserialization
+  - [x] Validation
+  - [x] Default calibration factory method
+
+- [x] **PointCloud3D class** (`chunivision/vision/point_cloud.py`)
+  - [x] 3D point storage
+  - [x] Filtering by depth/region
+  - [x] Downsampling
+  - [x] Transform operations
+  - [x] Merge operations
+
+- [x] **Calibrator class** (`chunivision/calibration/calibrator.py`)
+  - [x] Checkerboard detection
+  - [x] Stereo calibration
+  - [x] Rectification parameter computation
 
 ### Hand Detection (`chunivision/vision/hand_detector.py`)
 

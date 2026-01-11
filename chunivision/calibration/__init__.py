@@ -1,6 +1,6 @@
 """Calibration system for ChunIVision."""
 
-from .calibrator import Calibrator
 from .calibration_data import CalibrationData
+from .calibrator import CalibrationError, Calibrator
 
-__all__ = ["Calibrator", "CalibrationData"]
+__all__ = ["CalibrationData", "CalibrationError", "Calibrator"]
