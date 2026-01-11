@@ -40,8 +40,10 @@ class LoggingSettings:
 class CameraSettings:
     """Camera hardware configuration."""
 
-    left_camera_index: int = 0
-    right_camera_index: int = 1
+    # USB serial numbers for camera identification
+    left_camera_serial: str = ""
+    right_camera_serial: str = ""
+
     resolution: List[int] = field(default_factory=lambda: [640, 480])
     fps: int = 60
     exposure: int = -1

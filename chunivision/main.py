@@ -189,8 +189,8 @@ class ChunIVisionApp:
         # Create camera config from settings
         resolution = self.settings.camera.resolution
         camera_config = CameraConfig(
-            left_camera_serial=str(self.settings.camera.left_camera_index),
-            right_camera_serial=str(self.settings.camera.right_camera_index),
+            left_camera_serial=self.settings.camera.left_camera_serial,
+            right_camera_serial=self.settings.camera.right_camera_serial,
             resolution=(resolution[0], resolution[1]),
             fps=self.settings.camera.fps,
             exposure=self.settings.camera.exposure,
@@ -358,10 +358,10 @@ class ChunIVisionApp:
 
             try:
                 left_camera = OculusRiftCV1Camera(
-                    serial_number=str(self.settings.camera.left_camera_index)
+                    serial_number=self.settings.camera.left_camera_serial
                 )
                 right_camera = OculusRiftCV1Camera(
-                    serial_number=str(self.settings.camera.right_camera_index)
+                    serial_number=self.settings.camera.right_camera_serial
                 )
             except Exception as e:
                 self.logger.error(f"Failed to initialize cameras: {e}")

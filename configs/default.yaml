@@ -20,8 +20,11 @@ logging:
 
 # Camera Configuration
 camera:
-  left_camera_index: 0
-  right_camera_index: 1
+  # Camera identification - USB serial numbers for Oculus Rift CV1 cameras
+  # Use 'lsusb -v' or device manager to find serial numbers
+  left_camera_serial: ""   # Left camera USB serial (required - set before running)
+  right_camera_serial: ""  # Right camera USB serial (required - set before running)
+
   resolution: [640, 480]  # Width x Height
   fps: 60
   exposure: -1  # -1 for auto, or specific value
