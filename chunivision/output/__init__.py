@@ -1,6 +1,17 @@
-"""Output adapters for ChunIVision."""
+"""
+Output adapters for ChunIVision.
 
-from .base_output import BaseOutput
-from .output_manager import OutputManager
+This module will contain output adapters for different protocols:
+- Serial (COM port)
+- HID (USB device)
+- Keyboard (virtual keyboard)
+- UDP (network)
 
-__all__ = ["BaseOutput", "OutputManager"]
+Note: This module is currently a placeholder. Implementation is planned for Phase 4.
+"""
+
+# TODO: Implement output adapters in Phase 4
+# from .base_output import BaseOutput
+# from .output_manager import OutputManager
+
+__all__ = []
